@@ -1,57 +1,31 @@
 # NMsim
-`NMsim` is an R package that can modify and start Nonmem jobs from
-within R. Most notably, it can simulate Nonmem models (using the
+`NMsim` is an R package that can simulate Nonmem models (using the
 `NMsim` function) based on just a simulation data set and a path to an
-estimation control stream. It will also retrive and combine output tables with input data once Nonmem has finished and return the results to R. 
+estimation control stream. It will also retrive and combine output
+tables with input data once Nonmem has finished and return the results
+to R. 
 
 ## Install
-Easiest way to install `NMsim` is using the `remotes` package to install with R:
+`NMsim` is on CRAN and github:
 
 ```{r}
+## From CRAN
+install.packages("NMsim")
+## From github
 library(remotes)
 install_github("philipdelff/NMsim")
 ```
 
-`NMsim` makes extensive use of functionality provided by the `NMdata`
-package. For most recent features of `NMsim` to work, make sure to at
-least keep `NMdata` updated to latest CRAN or MPN release. 
 
 ## Simulate a Nonmem model from R
-In its simplest use, a simulation of the model stored in
+In its simplest use, a simulation of the (estimated) model stored in
 "path/to/file.mod" using the simulation input data set stored in the
 variable `data.sim` this way:
 
-```{r}
-simres <- NMsim(path.mod=/path/to/file.mod,
+```{r,eval=FALSE}
+simres <- NMsim(path.mod="/path/to/file.mod",
                 data=data.sim)
 ```
-`NMsim` will then do the following:
-
-* Save the simulation input data for Nonmem
-* Create a simulation input control stream based on `file.mod` 
-  ($INPUT and $DATA matching simulation data set, $SIMULATE instead of $ESTIMATION) 
-* Update and fix initial values based on estimate (from `file.ext`)
-* Run Nonmem on the generated simulation control stream
-* Collect output data tables, combine them, and merge with the simulation input
-  data
-* Return the collected data
-
-## How NMsim works 
-One strength of `NMsim` is that it does not simulate, translate or
-otherwise interpret the model. Instead, it automates the simulation
-workflow with Nonmem and wraps it all into one R function. This
-eliminates the need for re-implementation of a model. On the other
-hand, this also means that `NMsim` can't work without Nonmem, and that
-it does not provide anything beyond what is in the model.
-
-`NMsim` can use Nonmem directly or via `PSN`. If `NMsim` is run where
-Nonmem can't be executed, `NMsim` can still prepare the simulation
-control stream and datafile. 
-
-`NMsim` is in itself a small R package. It makes extensive use of
-functionality to handle Nonmem data and control streams provided by
-the R package
-[`NMdata`](https://cran.r-project.org/package=NMdata).
 
 ## Supported types of simulations
 `NMsim` has a flexible way to define simulation methods. The following
@@ -60,8 +34,9 @@ methods are currently provided:
 - Simulation of new subjects (default or explicitly with `method.sim=NMsim_default`)
 - Simulation of a typical subject (ETAs equal 0, `method.sim=NMsim_typical`)
 - Simulation of subjects already estimated in Nonmem model (`method.sim=NMsim_known`) 
-- Simulation with parameter uncertain based on a Nonmem covariance step (`method.sim=NMsim_VarCov`)
+- Simulation with parameter uncertainty based on a Nonmem covariance step (`method.sim=NMsim_VarCov`)
 - Simulation "as is" in case you already prepared a simulation control stream and just want to automate the use of it in combination with simulation data sets (`method.sim=NMsim_asis`)
+
 
 In addition, `NMsim` can simulate multiple models at a time. E.g., if a
 bootstrap run of a model is available, NMsim can run the simulation
@@ -78,16 +53,49 @@ Many features are available. Prominent ones are:
 1,000 model estimates from a bootstrap is actually not that hard).
 - Simulation replicates using Nonmem `SUBPROBLEMS` feature avaible
   through the `subproblems` argument
+- Can modify the simulation control stream on the fly - a powerful
+  feature for studying the effect of varying model parameters
 - Simulations of models on transformed observations can be
   automatically transformed back using the `transform` argument.
 
-Since `NMsim` does not change the model code (like $PRED, $PK,
-$ERROR), it cannot add residual variability to the simulation if this
-is not simulated in the model code already. It does provide a way to
-add residual variability in R after the simulation has been run
-`addResVar()`. If you want to discuss how to add this as generally as
-possible, please reach out on
-[github](https://github.com/philipdelff/NMsim/issues).
+If residual variability is not implemented in the simulated model, `NMsim` provides a way (`addResVar()`) to
+add residual variability in R after the simulation has been run. 
+
+To learn how to run these simulations on your Nonmem models, get started with 
+[`NMsim-basics.html`](https://philipdelff.github.io/NMsim/articles/NMsim-basics.html). It
+is really easy. 
+
+## How NMsim works 
+One strength of `NMsim` is that it does not simulate, translate or
+otherwise interpret the model. Instead, it automates the simulation
+workflow with Nonmem and wraps it all into one R function. In the example given above, 
+`NMsim` will do the following:
+
+* Save the simulation input data for Nonmem
+* Create a simulation input control stream based on `file.mod` ($INPUT
+  and $DATA matching simulation data set, $SIMULATE instead of
+  $ESTIMATION and $COVARIANCE)
+* Update and fix initial values based on estimate (from `file.ext`)
+* Run Nonmem on the generated simulation control stream
+* Collect output data tables, combine them, and merge with the simulation input
+  data
+* Return the collected data in R
+
+
+This
+eliminates the need for re-implementation of a model. On the other
+hand, this also means that `NMsim` can't work without Nonmem, and that
+it does not provide anything beyond what is in the model.
+
+`NMsim` can use Nonmem directly or via `PSN`. If `NMsim` is run on a
+system where Nonmem cannot be executed, `NMsim` can still prepare the
+simulation control stream and datafile.
+
+`NMsim` is in itself a small R package. It makes extensive use of
+functionality to handle Nonmem data and control streams provided by
+the R package
+[`NMdata`](https://cran.r-project.org/package=NMdata).
+
 
 ## Supported model types
 The methods currently provided by `NMsim` will work with (many or
@@ -128,19 +136,19 @@ available with PSN, so for some features you will have to specify the path to th
 Nonmem executable (say `path.nonmem=/path/to/nmfe75` or any Nonmem
 executable you want to use). Specifically of the simulation types
 currently available, simulation of known subjects is not possible
-using PSN (but works if a Nonmem executable is provided). On the other hand, submitting jobs to clusters is currently only supported via PSN.
+using PSN (but works if a Nonmem executable is provided). 
 
 If PSN is used, `NMsim` uses PSN's `execute` to run models. In
-addition, `NMsim` can use PSN's `update_inits` to update initial
-values in control streams. `NMsim` does also include its own simple
+addition, `NMsim` by default uses PSN's `update_inits` to update initial
+values in control streams, if PSN is available. `NMsim` does also include its own simple
 function to do this if `PSN` is not available.
 
-## Is `NMsim` trustworthy?
-Importantly, `NMsim` does not modify, translate or simulate the model
+## Is `NMsim` reliable?
+Importantly, `NMsim` does not (at least not by default) modify, translate or simulate the model
 itself. It does modify control stream sections `$INPUT`, `$DATA`,
 `$ESTIMATION`, `$SIMULATION`, `$THETA`, `$OMEGA`, `$SIGMA`, `$TABLE`
 as needed. The fact that `NMsim` allows for skipping the
-re-implementation but just simulates the Nonmem model as is,
+re-implementation but just uses Nonmem to simulate the Nonmem model as is,
 eliminates the risk of discrepancies between the estimated model and
 the simulated model.
 
