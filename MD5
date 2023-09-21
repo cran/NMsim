@@ -1,15 +1,15 @@
-27398001735ebc21f0729ccde91dedeb *DESCRIPTION
+41e6427b8dfdc04224af5d9eac38dd64 *DESCRIPTION
 1b54f9d1f7f1b5d3cc24b43761e6e90b *LICENSE
 f91656c7a3c2eb4dfe4d997415aa400a *NAMESPACE
 85d1173e2a4e2a9ca4a85ed13b738236 *NEWS
 ab9edb832f4f5394db40a1d39900bc6a *R/NMcreateDoses.R
 c0e9dce55f7433a20596f1957c3086a7 *R/NMcreateMatLines.R
-d73feab699060cda3193454d0592c44c *R/NMexec.R
+ec24273fe72c59ac9ea9cbe483f5f2dc *R/NMexec.R
 907e77f3213da3114a3fc15cfaa3ffb9 *R/NMexecDirectory.R
 b5e6f443d760fd80a3345c48423e9c52 *R/NMgenPNM.R
 0b82153826c79fa0622eaf658ea31010 *R/NMreadCov.R
-56ae33f09db6d8cf76fc0dcf0743a730 *R/NMreadExt.R
-3f7f3df55ccc52df309ac93b6feb3804 *R/NMreadPhi.R
+8c46a875e27f14cf9a7eb7fe59be9874 *R/NMreadExt.R
+ae5daa5220e4d53961ede9cc8cb620df *R/NMreadPhi.R
 6dc7073222fe7bea84fa8cf009c72c29 *R/NMreplaceInits.R
 1eb0594ae8aaeb02890dd6b1f021a8f9 *R/NMsim.R
 73e97d663ae5eb7965c3b30b6c18faa7 *R/NMsim_VarCov.R
@@ -88,6 +88,7 @@ f58cbce4beca860ce196b6d2ab560758 *man/checkTimes.Rd
 a9da665456f9b9c5c732a5f0ff6cb86e *man/inputArchiveDefault.Rd
 0376ec179d02a09d2d40d5d7d8e746b2 *man/simpleCharArg.Rd
 04cbfb909b103f1cc93a7efb66b1feb5 *man/writeTextFile.Rd
+d7c7cf1e185df3fb901b14601f90f0ac *tests/testthat.R
 819aa56b012371062165889823a5a74f *tests/testthat/testData/data/xgxr1.csv
 542d4f004f2db85a28307f7620be91f6 *tests/testthat/testData/nonmem/xgxr025.mod
 9bd3aa232473f503ba5dea713068456a *tests/testthat/testReference/NMcreateDoses_01.rds
@@ -109,5 +110,5 @@ cab6e371915ca2a1be2021b645132c5d *tests/testthat/testReference/addEVID2_04.rds
 10a26fe0e82bb561c0fb91ecd4d404af *tests/testthat/testReference/addEVID2_05.rds
 af713442c6b880171a32a2e38380bd10 *tests/testthat/test_NMcreateDoses.R
 5806c36f2b3576396204359523856949 *tests/testthat/test_NMsim.R
-181bf5fae824be959593d7bd1ef9db9e *tests/testthat/test_addEVID2.R
+16ccd8748ae2c83ab43d015520597837 *tests/testthat/test_addEVID2.R
 ae89ac6acba641ecfcb19a68b4d265bc *tests/testthat/test_addResVar.R
