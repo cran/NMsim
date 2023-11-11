@@ -13,6 +13,10 @@
 ##' @param file.sim See \code{?NMsim}.
 ##' @param file.mod See \code{?NMsim}.
 ##' @param data.sim See \code{?NMsim}.
+##' @param file.phi A phi file to take the known subjects from. The
+##'     default is to replace the filename extension on file.mod with
+##'     .phi. A different .phi file would be used if you want to reuse
+##'     subjects simulated in a previous simulation.
 ##' @param return.text If TRUE, just the text will be returned, and
 ##'     resulting control stream is not written to file.
 ##' @import NMdata
@@ -21,7 +25,7 @@
 ##' @export
 
 
-NMsim_known <- function(file.sim,file.mod,data.sim,return.text=FALSE){
+NMsim_known <- function(file.sim,file.mod,data.sim,file.phi,return.text=FALSE){
 
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
 
@@ -30,11 +34,18 @@ NMsim_known <- function(file.sim,file.mod,data.sim,return.text=FALSE){
     ID <- NULL
     n <- NULL
     is.data <- NULL
+    TABLE.NO <- NULL
+    tableStart <- NULL
     text <- NULL
-    textmod <- NULL    
+    textmod <- NULL
+    par.type <- NULL
 
 ### Section end: Dummy variables, only not to get NOTE's in pacakge checks
     
+    if(missing(file.phi)||is.null(file.phi)){
+        file.phi <- fnExtension(file.mod,".phi")
+    }
+
     path.phi.sim <- fnAppend(fnExtension(file.sim,".phi"),"input")
     files.needed.def <- NMsim_default(file.sim=file.sim,file.mod=file.mod,data.sim=data.sim)
 
@@ -44,19 +55,13 @@ NMsim_known <- function(file.sim,file.mod,data.sim,return.text=FALSE){
     ## get rid of any $ETAS sections
     lines.sim <- NMdata:::NMwriteSectionOne(lines=lines.sim,section="$ETAS",newlines="",backup=FALSE,quiet=TRUE)
     
-    lines.new <- sprintf("$ETAS FILE=%s  FORMAT=s1pE15.8 TBLN=1
-$ESTIMATION  MAXEVAL=0 NOABORT METHOD=1 INTERACTION FNLETA=2",basename(path.phi.sim))
     
-    lines.sim <- NMdata:::NMwriteSectionOne(lines=lines.sim,section="TABLE",location="before",
-                                   newlines=lines.new,backup=FALSE,quiet=TRUE)
-
 ### $SIM ONLYSIM does not work in combination with $ESTIM, so we have to drop ONLYSIM
     lines.section.sim <- NMreadSection(lines=lines.sim,section="SIM")
     lines.section.sim <- sub("ONLYSIM(ULATION)*","",lines.section.sim)
     lines.sim <- NMdata:::NMwriteSectionOne(lines=lines.sim,section="SIM",newlines=lines.section.sim,backup=FALSE,quiet=FALSE)
+
     
-#### .mod done
- 
     
 ###### todo
     ## cant allow disjoint id's in data
@@ -66,21 +71,49 @@ $ESTIMATION  MAXEVAL=0 NOABORT METHOD=1 INTERACTION FNLETA=2",basename(path.phi.
 
     ## phi file required
 ### read estimation phi file and select subjects to be simulated
-    path.phi <- fnExtension(file.mod,".phi")
-    phi <- NMreadTab(path.phi)
 
+### generate new phi file
     data.sim[,rowtmp:=.I]
     dt.id.order <- data.sim[,.SD[1],by=.(ID=as.character(ID)),.SDcols=cc(rowtmp)]
 
-    phi.lines <- data.table(text=readLines(path.phi))
-    phi.lines[,n:=.I]        
+#### try to read phi file to see if it reads and has ETAs
+    etasFromTabs <- FALSE
+    ## res.phi <- try(NMreadPhi(file.phi,as.fun="data.table"))
+    res.phi <- try(NMreadPhi(file.phi))
+    
+    if(inherits(res.phi,"try-error")) {
+        etasFromTabs <- TRUE
+    } else {
+        if(res.phi[par.type=="ETA",.N]==0){
+            etasFromTabs <- TRUE
+        }
+    }
+    if(etasFromTabs){
+        ## Could we just read tables and assume we can find an ID? Or how can NMscanData be informed with col.row etc?
+        dt.res <- NMscanData(file.mod)
+        file.phi <- tempfile()
+        genPhiFile(data=dt.res,file=file.phi)
+    }
+
+
+###### using the last table found in .phi to generate lines for a new .phi file. Reading this should be done with NMreadPhi.
+    phi.lines <- data.table(text=readLines(file.phi))
+    phi.lines[,n:=.I]
+    ## Accepting E and R which can be in numbers (R?)
     phi.lines[,is.data:=!grepl("[a-zABCDFGHIJKLMNOPQSTUVWXYZ]",x=text)]
     phi.lines[is.data==TRUE,textmod:=gsub(" +"," ",text)]
     phi.lines[is.data==TRUE,textmod:=gsub("^ +","",textmod)]
     phi.lines[is.data==TRUE,ID:=strsplit(textmod,split=" ")[[1]][2],by=.(n)]
     ## phi.lines
-
+    ## picking last table - for SAEM+IMP that means we use IMP phi's
+    phi.lines[,tableStart:=FALSE]
+    phi.lines[grepl("^ *TABLE NO\\..*",text),tableStart:=TRUE]
+    phi.lines[,TABLE.NO:=cumsum(tableStart)]
+    phi.lines <- phi.lines[TABLE.NO==max(TABLE.NO)]
+    
     phi.use <- mergeCheck(dt.id.order[,.(ID)],phi.lines[,.(ID,text)],by=cc(ID),all.x=TRUE)
+    
+
 ### Error if subjects in data are not found in phi
     if(phi.use[,any(is.na(text))]){
         message("IDs not found in nonmem results (phi file):", paste(phi.use[is.na(text),ID],collapse=", "))
@@ -91,6 +124,17 @@ $ESTIMATION  MAXEVAL=0 NOABORT METHOD=1 INTERACTION FNLETA=2",basename(path.phi.
     lines.phi <- phi.use[,text]
     path.phi.sim <- fnAppend(fnExtension(file.sim,".phi"),"input")
 
+
+### udpate simulation control stream
+    lines.new <- sprintf("$ETAS FILE=%s FORMAT=s1pE15.8 TBLN=1
+$ESTIMATION  MAXEVAL=0 NOABORT METHOD=1 INTERACTION FNLETA=2",basename(path.phi.sim))
+    
+    lines.sim <- NMdata:::NMwriteSectionOne(lines=lines.sim,section="TABLE",location="before",
+                                            newlines=lines.new,backup=FALSE,quiet=TRUE)
+
+#### .mod done
+
+    
     if(return.text){
         return(list(mod=lines.sim,
                     phi=lines.phi))
@@ -100,6 +144,8 @@ $ESTIMATION  MAXEVAL=0 NOABORT METHOD=1 INTERACTION FNLETA=2",basename(path.phi.
     
     writeTextFile(lines.phi,path.phi.sim)
 
+    
+    
     files.needed <- data.table(path.sim=file.sim,files.needed=path.phi.sim)
     files.needed
 }

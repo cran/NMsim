@@ -19,6 +19,7 @@ NMexec(
   method.execute = "psn",
   dir.psn,
   path.nonmem,
+  system.type,
   files.needed
 )
 }
@@ -58,7 +59,7 @@ to be available for further processing.}
 
 \item{args.psn.execute}{A character string with arguments passed
 to execute. Default is
-"-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi".}
+"-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi,shk".}
 
 \item{update.only}{Only run model(s) if control stream or data
 updated since last run?}
@@ -101,17 +102,21 @@ installed version of PSN).}
 
 \item{path.nonmem}{The path to the nonmem executable. Only used if
 \code{method.execute="direct"} or
-\code{method.execute="nmsim"} (which is not default). If
-this argument is not supplied, NMexec will try to run nmfe75,
+\code{method.execute="nmsim"} (which is not default). If this
+argument is not supplied, NMexec will try to run nmfe75,
 i.e. this has to be available in the path of the underlying
 shell. The default value can be modified using
 \code{NMdata::NMdataConf}, like
 \code{NMdataConf(path.nonmem="/path/to/nonmem")}}
 
-\item{files.needed}{In case method.execute="nmsim", this
-argument specifies files to be copied into the temporary
-directory before Nonmem is run. Input control stream and
-simulation input data does not need to be specified.}
+\item{system.type}{A charachter string, either \"windows\" or
+\"linux\" - case insensitive. Windows is only experimentally
+supported. Default is to use \code{Sys.info()[["sysname"]]}.}
+
+\item{files.needed}{In case method.execute="nmsim", this argument
+specifies files to be copied into the temporary directory
+before Nonmem is run. Input control stream and simulation
+input data does not need to be specified.}
 }
 \value{
 NULL (invisibly)

@@ -1,0 +1,4 @@
+"parameter","value"
+"DataCreateScript","https://github.com/philipdelff/NMexec/tree/main/inst/examples/R/NMexec_examples.R"
+"CreationTime","2022-10-21 16:02:39 EDT"
+"writtenTo","testOutput/NMsimData_xgxr025_sd1.csv"

@@ -31,7 +31,7 @@
 ##'     to be available for further processing.
 ##' @param args.psn.execute A character string with arguments passed
 ##'     to execute. Default is
-##'     "-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi".
+##'     "-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi,shk".
 ##' @param update.only Only run model(s) if control stream or data
 ##'     updated since last run?
 ##' @param nmquiet Suppress terminal output from `Nonmem`. This is
@@ -69,16 +69,19 @@
 ##'     installed version of PSN).
 ##' @param path.nonmem The path to the nonmem executable. Only used if
 ##'     \code{method.execute="direct"} or
-##'     \code{method.execute="nmsim"} (which is not default). If
-##'     this argument is not supplied, NMexec will try to run nmfe75,
+##'     \code{method.execute="nmsim"} (which is not default). If this
+##'     argument is not supplied, NMexec will try to run nmfe75,
 ##'     i.e. this has to be available in the path of the underlying
 ##'     shell. The default value can be modified using
 ##'     \code{NMdata::NMdataConf}, like
 ##'     \code{NMdataConf(path.nonmem="/path/to/nonmem")}
-##' @param files.needed In case method.execute="nmsim", this
-##'     argument specifies files to be copied into the temporary
-##'     directory before Nonmem is run. Input control stream and
-##'     simulation input data does not need to be specified.
+##' @param files.needed In case method.execute="nmsim", this argument
+##'     specifies files to be copied into the temporary directory
+##'     before Nonmem is run. Input control stream and simulation
+##'     input data does not need to be specified.
+##' @param system.type A charachter string, either \"windows\" or
+##'     \"linux\" - case insensitive. Windows is only experimentally
+##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
 ##' @details Use this to read the archived input data when retrieving
 ##'     the nonmem results:
 ##'     \code{NMdataConf(file.data=inputArchiveDefault)}
@@ -114,7 +117,7 @@
 NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
                    nc=64,dir.data=NULL,wait=FALSE, args.psn.execute,
                    update.only=FALSE,nmquiet=FALSE,
-                   method.execute="psn",dir.psn,path.nonmem,
+                   method.execute="psn",dir.psn,path.nonmem,system.type,
                    files.needed){
     
     
@@ -162,11 +165,14 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
         input.archive <- function(file) FALSE
     }
 
+    if(missing(system.type)) system.type <- NULL
+    system.type <- getSystemType(system.type)
+
     ## args.psn.execute
     if(missing(args.psn.execute)) args.psn.execute <- NULL
     args.psn.execute <- simpleCharArg("args.psn.execute"
                                      ,args.psn.execute
-                                     ,default="-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi"
+                                     ,default="-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi,shk"
                                      ,accepted=NULL
                                      ,clean=FALSE
                                      ,lower=FALSE)
@@ -187,6 +193,8 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
                                  ,accepted=NULL
                                  ,clean=FALSE
                                  ,lower=FALSE)
+
+    
     
     if(is.null(files) && is.null(file.pattern)) file.pattern <- ".+\\.mod"
     files.all <- NMdata:::getFilePaths(files=files,file.pattern=file.pattern,dir=dir,quiet=TRUE)
@@ -222,9 +230,15 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
             saveRDS(dat.inp,file=file.path(rundir,basename(fn.input)))
         }
 
+
         if(method.execute=="psn"){
-            ## string.cmd <- paste0("cd ",rundir,"; ",cmd.execute ,args.execute)
-            string.cmd <- sprintf("cd %s; %s %s",rundir,cmd.execute ,args.psn.execute)
+            ##if(system.tpe=="linux"){
+            
+            string.cmd <- sprintf('cd "%s"; "%s" %s',rundir,cmd.execute ,args.psn.execute)
+            ##}
+            ## if(system.type=="windows"){
+            ##     pas
+            ## }
             if(sge){
                 string.cmd <- paste0(string.cmd," -run_on_sge")
                 if(nc>1){
@@ -249,8 +263,8 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
             if(sge) {
                 
                 ## string.cmd <- sprintf("cd %s; qsub -terse -wd \'%s\' %s",getwd(),dirname(string.cmd),string.cmd)
-#### I am not sure if absolute path is needed here.
-                string.cmd <- sprintf("cd %s; qsub -terse -wd \'%s\' %s",
+                ## I am not sure if absolute path is needed here.
+                string.cmd <- sprintf('cd "%s"; qsub -terse -wd \'%s\' %s',
                                       getwd(),getAbsolutePath(dirname(string.cmd)),string.cmd)
                 ## string.cmd <- paste0("CURWD=",getwd()," ",string.cmd)
                 wait <- TRUE
@@ -259,11 +273,23 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
             }
         }
         
-        if(nmquiet) string.cmd <- paste(string.cmd, ">/dev/null 2>&1")
-        
-        if(!wait) string.cmd <- paste(string.cmd,"&")
-        
-        system(string.cmd,ignore.stdout=nmquiet)
+        if(system.type=="windows"){
+            
+            ## contents.bat <- gsub(";","\n",string.cmd)
+            ## cat(contents.bat,file=path.script)
+            path.script <- file.path(dirname(file.mod),"NMsim_exec.bat")
+            contents.bat <-
+                strsplit(string.cmd,split=";")[[1]]
+            writeTextFile(contents.bat,file=path.script)
+
+            shell(shQuote(path.script,type="cmd") )
+        }
+        if(system.type=="linux"){
+            if(nmquiet) string.cmd <- paste(string.cmd, ">/dev/null 2>&1")
+            if(!wait) string.cmd <- paste(string.cmd,"&")
+            
+            system(string.cmd,ignore.stdout=nmquiet)
+        }
     }
 
     return(invisible(NULL))

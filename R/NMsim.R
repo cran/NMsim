@@ -35,19 +35,35 @@
 ##'     transform, the contents must be the function to apply.
 ##' @param seed Seed to pass to Nonmem. Default is to draw one betwen
 ##'     0 and 2147483647 (the values supported by Nonmem) for each
-##'     simulation. In case type.sim=known, seed is not used and will
-##'     be set to 1. You can pass a function that will be evaluated
-##'     (say to choose a different pool of seeds to draw from).
+##'     simulation. You can pass a function that will be evaluated
+##'     (say to choose a different pool of seeds to draw from). In
+##'     case type.sim=known, seed is not used and will be set to 1.
 ##' @param args.psn.execute A charachter string that will be passed as
 ##'     arguments PSN's `execute`.
+##' @param table.vars Variables to be printed in output table as a
+##'     character vector or a space-separated string of variable
+##'     names. The default is to export the same tables as listed in
+##'     the input control stream. If \code{table.vars} is provided,
+##'     all output tables in estimation control streams are dropped
+##'     and replaced by a new one with just the provided variables. If
+##'     many variables are exported, and much fewer are used, it can
+##'     speed up NMsim significantly to only export what is needed
+##'     (sometimes this is as little as "PRED IPRED"). Nonmem writes
+##'     data slowly so reducing output data can make a big difference
+##'     in execution time. See \code{table.options} too.
+##' @param table.options A character vector or a string of
+##'     space-separated options. Only used if \code{table.vars} is
+##'     provided. If constructing a new output table with
+##'     \code{table.vars} the default is to add two options,
+##'     \code{NOAPPEND} and \code{NOPRINT}. You can modeify that with
+##'     \code{table.options}. Do not try to modify output filename -
+##'     \code{NMsim} takes care of that.
 ##' @param text.table A character string including the variables to
-##'     export from Nonmem. The default is to export the same tables
-##'     as listed in the input control stream. But if many variables
-##'     are exported, and much fewer are used, it can speed up NMsim
-##'     significantly to only export what is needed (sometimes this is
-##'     as little as "PRED IPRED"). Nonmem writes data slowly so
-##'     reducing output data from say 100 columns to a handful makes a
-##'     big difference.
+##'     export from Nonmem.
+##' @param text.sim A character string to be pasted into
+##'     $SIMULATION. This must not contain seed or SUBPROBLEM which
+##'     are handled separately. Default is to include "ONLYSIM". To
+##'     avoid that, use text.sim="".
 ##' @param method.sim A function (not quoted) that creates the
 ##'     simulation control stream and other necessary files for a
 ##'     simulation based on the estimation control stream, the data,
@@ -64,6 +80,10 @@
 ##'     useful if creating a large number of simulations,
 ##'     e.g. simulate with all parameter estimates from a bootstrap
 ##'     result.
+##' @param col.row Only used if data is not supplied (which is most
+##'     likely for simulations for VPCs) A column name to use for a
+##'     row identifier. If none is supplied,
+##'     \code{NMdataConf()[['col.row']]} will be used. If the column already exists in the data set, it will be used as is, if not it will be added.
 ##' @param method.execute Specify how to call Nonmem. Options are
 ##'     "psn" (PSN's execute), "nmsim" (an internal method similar to
 ##'     PSN's execute), and "direct" (just run Nonmem directly and
@@ -125,6 +145,15 @@
 ##'     something else. If data.tables are wanted, use
 ##'     as.fun="data.table". The default can be configured using
 ##'     NMdataConf.
+##' @param args.NMscanData If \code{wait=TRUE}, NMsim will normally
+##'     read the results using NMdata::NMscanData. Use this argument
+##'     to pass additional arguments (in a list) to that function if
+##'     you want the results to be read in a specific way. You can
+##'     also use \code{wait=FALSE} and read the data with
+##'     NMdata::NMscanData as you like.
+##' @param system.type A charachter string, either \"windows\" or
+##'     \"linux\" - case insensitive. Windows is only experimentally
+##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
 ##' @param suffix.sim Deprecated. Use name.sim instead.
 ##' @param ... Additional arguments passed to \code{method.sim}.
 ##' @return A data.frame with simulation results (same number of rows
@@ -144,7 +173,7 @@
 ##' Notice, the following functions are internally available to
 ##' `NMsim` so you can run them by say \code{method.sim=NMsim_known}
 ##' without quotes. To see the code of that method, type
-##' \code{NMsim:::NMsim_known}.
+##' \code{NMsim_known}.
 ##' 
 ##' \itemize{
 ##' 
@@ -193,12 +222,20 @@
 NMsim <- function(file.mod,data,dir.sims, name.sim,
                   order.columns=TRUE,script=NULL,subproblems=NULL,
                   reuse.results=FALSE,seed,args.psn.execute,
-                  nmquiet=FALSE,text.table, method.sim=NMsim_default,
+                  table.vars,
+                  table.options,
+                  text.sim="",
+                  method.sim=NMsim_default,
                   execute=TRUE,sge=FALSE,transform=NULL,
                   method.execute,method.update.inits,create.dir=TRUE,dir.psn,
                   list.sections,sim.dir.from.scratch=TRUE,
-                  path.nonmem=NULL,as.fun
-                 ,suffix.sim
+                  col.row,
+                  args.NMscanData,
+                  path.nonmem=NULL,
+                  nmquiet=FALSE,
+                  as.fun
+                 ,suffix.sim,text.table,
+                  system.type=NULL
                  ,...
                   ){#### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
     
@@ -248,6 +285,8 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     
     if(missing(file.mod)) stop("file.mod must be supplied. It must be one or more paths to existing control streams.")
     if(any(!file.exists(file.mod))) stop("All elements in file.mod must be paths to existing input control streams.")
+
+    if(missing(data)) data <- NULL
     
     ## dir.psn - should use NMdataConf setup
     if(missing(dir.psn)) dir.psn <- NULL
@@ -263,13 +302,24 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     
 
     ## path.nonmem
-        if(missing(path.nonmem)) path.nonmem <- NULL
+    if(missing(path.nonmem)) path.nonmem <- NULL
     path.nonmem <- try(NMdata:::NMdataDecideOption("path.nonmem",path.nonmem),silent=TRUE)
     if(inherits(path.nonmem,"try-error")){
         path.nonmem <- NULL
         
         path.nonmem <- simpleCharArg("path.nonmem",path.nonmem,default=NULL,accepted=NULL,lower=FALSE)
     }
+
+    if(missing(args.NMscanData)) args.NMscanData <- NULL
+    if(!is.null(args.NMscanData)){
+        if(!is.list(args.NMscanData)) stop("args.NMscanData must be a list.")
+        if(any(names(args.NMscanData)=="")) stop("All elements in args.NMscanData must be named.")
+    }
+    args.NMscanData.default <- list(merge.by.row=FALSE)
+
+    if(missing(system.type)) system.type <- NULL
+    system.type <- getSystemType(system.type)
+
     
     ## method.execute
     if(missing(method.execute)) method.execute <- NULL
@@ -282,6 +332,10 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     method.execute <- simpleCharArg("method.execute",method.execute,method.execute.def,cc(psn,direct,nmsim))
     if(method.execute%in%cc(direct,nmsim) && is.null(path.nonmem)){
         stop("When method.execute is direct or nmsim, path.nonmem must be provided.")
+    }
+
+    if(system.type=="windows" && method.execute != "psn"){
+        stop('On windows, only method.execute=\"psn\" is supported.')
     }
     
     ## args.psn.execute
@@ -302,17 +356,19 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         
         ## check if update_inits is avail
         ## if(suppressWarnings(system(paste(cmd.update.inits,"-h"),show.output.on.console=FALSE)!=0)){
-        which.found <- system(paste("which",cmd.update.inits),ignore.stdout=T)
-        if(which.found!=0){
-            method.update.inits <- "nmsim"
-            rm(cmd.update.inits)
+        if(system.type=="linux"){
+            which.found <- system(paste("which",cmd.update.inits),ignore.stdout=T)
+            if(which.found!=0){
+                method.update.inits <- "nmsim"
+                rm(cmd.update.inits)
+            }
         }
     }
     method.update.inits <- simpleCharArg("method.update.inits",method.update.inits,"nmsim",cc(psn,nmsim,none))
     ## if update.inits with psn, it needs to be available
     if(method.update.inits=="psn"){
         cmd.update.inits <- file.psn(dir.psn,"update_inits")        
-        if(suppressWarnings(system(paste(cmd.update.inits,"-h"),ignore.stdout = TRUE)!=0)){
+        if(system.type=="linux" && suppressWarnings(system(paste(cmd.update.inits,"-h"),ignore.stdout = TRUE)!=0)){
             stop('Attempting to use PSN\'s update_inits but it was not found. Look at the dir.psn argument or use method.update.inits="nmsim"')
         }
     }
@@ -332,7 +388,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
 
     ## modelname
     ## if(missing(modelname)){
-        modelname <- NULL
+    modelname <- NULL
     ## }
     file.mod.named <- FALSE
     if(!is.null(names(file.mod))){
@@ -356,25 +412,28 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
 
     if(length(file.mod)>1){
         allres.l <- lapply(1:length(file.mod),function(x)
-                           NMsim(file.mod=file.mod[[x]],
-                          ,data=data
-                          ,dir.sims=dir.sims,
-                           name.sim=name.sim,
-                           order.columns=order.columns,script=script,
-                           subproblems=subproblems,
-                           reuse.results=reuse.results,seed=seed,
-                           args.psn.execute=args.psn.execute,
-                           nmquiet=nmquiet,
-                           text.table=text.table,
-                           execute=execute,
-                           sge=sge
-                           ## ,modelname=modelname
-                          ,transform=transform
-                          ,method.sim=method.sim
-                          ,path.nonmem=path.nonmem
-                          ,dir.psn=dir.psn
-                          ,...
-                           ))
+            NMsim(file.mod=file.mod[[x]],
+                 ,data=data
+                 ,dir.sims=dir.sims,
+                  name.sim=name.sim,
+                  order.columns=order.columns,script=script,
+                  subproblems=subproblems,
+                  reuse.results=reuse.results,seed=seed,
+                  args.psn.execute=args.psn.execute,
+                  nmquiet=nmquiet,
+                  text.table=text.table,
+                  text.sim=text.sim,
+                  execute=execute,
+                  sge=sge
+                  ## ,modelname=modelname
+                 ,transform=transform
+                 ,method.sim=method.sim
+                 ,path.nonmem=path.nonmem
+                 ,col.row=col.row
+                 ,args.NMscanData=args.NMscanData
+                 ,dir.psn=dir.psn
+                 ,...
+                  ))
         if(file.mod.named){
             names.mod <- names(file.mod)
             allres.l <- lapply(1:length(allres.l),function(I) allres.l[[I]][,model:=names.mod[[I]]])
@@ -382,8 +441,23 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         return(rbindlist(allres.l,fill=TRUE))
     }
 
-
-
+    if(missing(table.vars)) table.vars <- NULL
+    if(missing(table.options)) table.options <- NULL
+### generate text.table as the combination of table.vars and table.options
+    if(missing(text.table) || is.null(text.table)){
+        if(missing(table.options)||is.null(table.options)){
+            table.options <- c("NOPRINT","NOAPPEND")
+        }
+        if(!is.null(table.vars)){
+            text.table <- paste(paste(table.vars,collapse=" "),paste(table.options,collapse=" "))
+        }
+    } else{
+        if(!is.null(table.vars) || !is.null(table.options)){
+            stop("argument \'text.table\' is deprecated. Please use \'table.vars\' and/or \'table.options\' instead.")
+        }
+        message("argument \'text.table\' is deprecated. Please use \'table.vars\' and/or \'table.options\' instead.")
+    }
+    
     
 #### Section start: Defining additional paths based on arguments ####
 
@@ -404,6 +478,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     
     
     ## seed
+    arg.seed <- seed
     if(is.null(seed)){
         seed <- function()round(runif(n=1)*2147483647)
     } 
@@ -442,9 +517,25 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     dt.models[,path.sim:=NMdata:::filePathSimple(file.path(dir.sim,fn.sim))]
     
 ### note: insert test for whether run is needed here
-
-    data <- copy(as.data.table(data))
-    
+    ## if data is NULL, we will re-use data used in file.mod
+    rewrite.data.section <- TRUE
+    if(is.null(data)){
+        if(!packageVersion("NMdata")>"0.1.1") stop("data has to be supplied. Starting with NMdata 0.1.2 it will be possible not to supply data which is intented for simulations for VPCs.")
+        data <- NMscanInput(file.mod,recover.cols=FALSE,translate=FALSE,apply.filters=FALSE,col.id=NULL)
+        ## col.row <- tmpcol(data,base="ROW")
+        if(missing(col.row)) col.row <- NULL
+        col.row <- NMdata:::NMdataDecideOption("col.row",col.row)
+        if(!col.row %in% colnames(data)){
+            data[,(col.row):=.I]
+            message(paste0("Row counter was added in column",col.row,". Use this to merge output and input data."))
+        }
+        args.NMscanData.default$merge.by.row <- TRUE
+        args.NMscanData.default$col.row <- col.row
+        rewrite.data.section <- FALSE
+        order.columns <- FALSE
+    } else {
+        data <- copy(as.data.table(data))
+    }
     ## if(!col.row%in%colnames(data)) data[,(col.row):=.I]
 
     if(order.columns) data <- NMorderColumns(data)
@@ -454,8 +545,6 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     dt.models[,path.data:=file.path(dir.sim,fn.data)]
     
 ### clear simulation directories so user does not end up with old results
-    dt.models[,]
-    
     if(sim.dir.from.scratch){
         dt.models[,if(dir.exists(dir.sim)) unlink(dir.sim),by=.(ROWMODEL)]
     }
@@ -474,18 +563,28 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     }
     
     if(method.update.inits=="psn"){
+### this next line is done already. I think it should be removed but testing needed.
         cmd.update.inits <- file.psn(dir.psn,"update_inits")
-        dt.models[,{
-            ## cmd.update <- sprintf("%s --output_model=%s --seed=%s %s",cmd.update.inits,fn.sim.tmp,seed,file.mod)
-            cmd.update <- sprintf("%s --output_model=%s %s",cmd.update.inits,fn.sim.tmp,file.mod)
+
+        dt.models[,
+        {
+            cmd.update <- sprintf("%s --output_model=\"%s\" \"%s\"",normalizePath(cmd.update.inits),fn.sim.tmp,normalizePath(file.mod))
 ### would be better to write to another location than next to estimation model
             ## cmd.update <- sprintf("%s --output_model=%s %s",cmd.update.inits,file.path(".",fn.sim.tmp),file.mod)
-            
-            sys.res <- system(cmd.update,wait=TRUE)
-            
-            if(sys.res!=0){
-                stop("update_inits failed. Please look into this. Is the output control stream available? Is it in a directory where you have write-access?")
-            }            
+
+            if(system.type=="linux"){
+                sys.res <- system(cmd.update,wait=TRUE)
+                
+                if(sys.res!=0){
+                    stop("update_inits failed. Please look into this. Is the output control stream available? Is it in a directory where you have write-access?")
+                }
+            }
+            if(system.type=="windows"){
+                cmd.update <- sprintf("\"%s\" --output_model=\"%s\" \"%s\"",normalizePath(cmd.update.inits),fn.sim.tmp,normalizePath(file.mod))
+                script.update.inits <- file.path(dirname(file.mod),"script_update_inits.bat")
+                writeTextFile(cmd.update,script.update.inits)
+                sys.res <- shell(shQuote("tmp.bat",type="cmd") )
+            }
             
             file.rename(file.path(dirname(file.mod),fn.sim.tmp),path.sim)
         },by=ROWMODEL]
@@ -498,11 +597,23 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
 
 ### save data and replace $input and $data
 #### multiple todo: save only for each unique path.data
-    
+
+
     dt.models[,{
+        
         nmtext <- NMwriteData(data,file=path.data,quiet=TRUE,args.NMgenText=list(dir.data="."),script=script)
-        NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext,backup=FALSE,quiet=TRUE)
+        ## input 
+        NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["INPUT"],backup=FALSE,quiet=TRUE)
+        ## data
+        if(rewrite.data.section){
+            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["DATA"],backup=FALSE,quiet=TRUE)    
+        } else {
+            ## replace data file only
+            
+            NMreplaceDataFile(files=path.sim,path.data=basename(path.data))
+        }
     },by=.(ROWMODEL)]
+    
     
 
 #### Section start: Output tables ####
@@ -565,7 +676,6 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     
     
     ## fun simulation method
-    
     dt.models.gen <- dt.models[,
                                method.sim(file.sim=path.sim,file.mod=file.mod,data.sim=data,...)
                               ,by=.(ROWMODEL)]
@@ -652,7 +762,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
             all.sections.sim <- NMreadSection(lines=lines.sim)
             names.sections <- names(all.sections.sim)
             n.sim.sections <- sum(grepl("^(SIM|SIMULATION)$",names.sections))
-            if(n.sim.sections == 0){
+            if(n.sim.sections == 0 && (!is.null(arg.seed) || subproblems>1) ){
                 warning("No simulation section found. Subproblems and seed will not be applied.")
             }
             if(n.sim.sections > 1 ){
@@ -661,14 +771,16 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
             if(n.sim.sections == 1 ){
                 name.sim <- names.sections[grepl("^(SIM|SIMULATION)$",names.sections)]
                 section.sim <- all.sections.sim[[name.sim]]
-                if(subproblems>0){
-                    section.sim <- gsub("SUBPROBLEMS *= *[0-9]*"," ",section.sim)
-                    section.sim <- paste(section.sim,sprintf("SUBPROBLEMS=%s",subproblems))
-                }
+                
                 if(!is.null(seed)){
                     section.sim <- gsub("\\([0-9]+\\)","",section.sim)
                     section.sim <- paste(section.sim,sprintf("(%s)",seed))
                 }
+                if(subproblems>0){
+                    section.sim <- gsub("SUBPROBLEMS *= *[0-9]*"," ",section.sim)
+                    section.sim <- paste(section.sim,sprintf("SUBPROBLEMS=%s",subproblems))
+                }
+                section.sim <- paste(section.sim,text.sim)
                 lines.sim <- NMdata:::NMwriteSectionOne(lines=lines.sim,section="simulation",newlines=section.sim,quiet=TRUE)
                 writeTextFile(lines.sim,path.sim)
             }
@@ -707,9 +819,11 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
                 unlink(path.sim.lst)
 
             }
-            NMexec(files=path.sim,sge=sge,nc=1,wait=wait,args.psn.execute=args.psn.execute,nmquiet=nmquiet,method.execute=method.execute,path.nonmem=path.nonmem,files.needed=files.needed.n,input.archive=input.archive)
+            NMexec(files=path.sim,sge=sge,nc=1,wait=wait,args.psn.execute=args.psn.execute,nmquiet=nmquiet,method.execute=method.execute,path.nonmem=path.nonmem,dir.psn=dir.psn,files.needed=files.needed.n,input.archive=input.archive,system.type=system.type)
             
             if(wait){
+                args.NMscanData <- c(args.NMscanData,args.NMscanData.default)
+                args.NMscanData <- args.NMscanData[unique(names(args.NMscanData))]
                 simres.n <- try(NMscanData(path.sim.lst,merge.by.row=FALSE,as.fun="data.table",file.data=input.archive))
                 if(inherits(simres.n,"try-error")){
                     message("Results could not be read.")
