@@ -1,0 +1,4 @@
+"parameter","value"
+"DataCreateScript","run_bootstraps.R"
+"CreationTime","2023-12-31 23:23:59 EST"
+"writtenTo","../data/xgxr032_bs.rds ../data/xgxr032_bs.csv"

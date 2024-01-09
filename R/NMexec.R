@@ -82,6 +82,8 @@
 ##' @param system.type A charachter string, either \"windows\" or
 ##'     \"linux\" - case insensitive. Windows is only experimentally
 ##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
+##' @param quiet Suppress messages on what NMexec is doing? Default is
+##'     FALSE.
 ##' @details Use this to read the archived input data when retrieving
 ##'     the nonmem results:
 ##'     \code{NMdataConf(file.data=inputArchiveDefault)}
@@ -118,7 +120,7 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
                    nc=64,dir.data=NULL,wait=FALSE, args.psn.execute,
                    update.only=FALSE,nmquiet=FALSE,
                    method.execute="psn",dir.psn,path.nonmem,system.type,
-                   files.needed){
+                   files.needed,quiet=FALSE){
     
     
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
@@ -205,11 +207,10 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
         files.exec <- findUpdated(files.all)
     }
 
-    ## message(paste(files.exec,collapse=", "))
     
     for(file.mod in files.exec){
         file.mod <- NMdata:::filePathSimple(file.mod)
-        message(paste0("Executing ",file.mod))
+        if(!quiet) message(paste0("Executing ",file.mod))
         if(!file.exists(file.mod)){
             stop(paste("Could not find file:",file.mod))
         }
@@ -231,6 +232,13 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
         }
 
 
+        if((sge && nc > 1)||(sge && method.execute=="psn")){
+            if(nc>1){
+                file.pnm <- file.path(rundir,"NMexec.pnm")
+                pnm <- NMgenPNM(nc=nc,file=file.pnm)
+            }
+        }
+
         if(method.execute=="psn"){
             ##if(system.tpe=="linux"){
             
@@ -242,8 +250,6 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
             if(sge){
                 string.cmd <- paste0(string.cmd," -run_on_sge")
                 if(nc>1){
-                    file.pnm <- file.path(rundir,"NMexec.pnm")
-                    pnm <- NMgenPNM(nc=nc,file=file.pnm)
                     string.cmd <- paste0(string.cmd," -sge_prepend_flags=\"-pe orte ",nc," -V\" -parafile=",basename(pnm)," -nodes=",nc)
                 }
             }
@@ -261,12 +267,19 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
             }
             string.cmd <- NMexecDirectory(file.mod,path.nonmem,files.needed=files.needed)
             if(sge) {
-                
-                ## string.cmd <- sprintf("cd %s; qsub -terse -wd \'%s\' %s",getwd(),dirname(string.cmd),string.cmd)
-                ## I am not sure if absolute path is needed here.
-                string.cmd <- sprintf('cd "%s"; qsub -terse -wd \'%s\' %s',
-                                      getwd(),getAbsolutePath(dirname(string.cmd)),string.cmd)
-                ## string.cmd <- paste0("CURWD=",getwd()," ",string.cmd)
+
+                if(nc==1){
+                    ## string.cmd <- sprintf("cd %s; qsub -terse -wd \'%s\' %s",getwd(),dirname(string.cmd),string.cmd)
+                    ## I am not sure if absolute path is needed here.
+                    string.cmd <- sprintf('cd "%s"; qsub -terse -wd \'%s\' %s',
+                                          getwd(),getAbsolutePath(dirname(string.cmd)),string.cmd)
+                    ## string.cmd <- paste0("CURWD=",getwd()," ",string.cmd)
+
+##### for nc>1 this can be used <nc> is nc evaluated
+                    ## qsub -pe orte <nc> -V -N <name for qstat> -j y -cwd -b y /opt/NONMEM/nm75/run/nmfe75 psn.mod psn.lst -background -parafile=/path/to/pnm [nodes]=<nc>
+                } else {
+                    string.cmd <- sprintf('cd %s; qsub -pe orte %s -V -N NMsim -j y -cwd -b y %s %s %s -background -parafile=%s [nodes]=%s' ,getwd(),nc,path.nonmem,file.mod,fnExtension(file.mod,"lst"),pnm,nc)
+                }
                 wait <- TRUE
             } else {
                 string.cmd <- sprintf("cd %s; ./%s",dirname(string.cmd),basename(string.cmd))
@@ -285,6 +298,7 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
             shell(shQuote(path.script,type="cmd") )
         }
         if(system.type=="linux"){
+            
             if(nmquiet) string.cmd <- paste(string.cmd, ">/dev/null 2>&1")
             if(!wait) string.cmd <- paste(string.cmd,"&")
             

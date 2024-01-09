@@ -25,7 +25,7 @@ NMsim(
   transform = NULL,
   method.execute,
   method.update.inits,
-  create.dir = TRUE,
+  create.dirs = TRUE,
   dir.psn,
   list.sections,
   sim.dir.from.scratch = TRUE,
@@ -37,6 +37,9 @@ NMsim(
   suffix.sim,
   text.table,
   system.type = NULL,
+  dir.res,
+  file.res,
+  quiet = FALSE,
   ...
 )
 }
@@ -50,7 +53,8 @@ simulating known subjects, the .phi is necessary too.}
 \item{data}{The simulation data as a data.frame.}
 
 \item{dir.sims}{The directory in which NMsim will store all
-generated files.}
+generated files. Default is to create a folder called `NMsim`
+next to `file.mod`.}
 
 \item{name.sim}{Give all filenames related to the simulation a
 suffix. A short string describing the sim is recommended like
@@ -155,8 +159,8 @@ control streams less easy to read. On the other hand, this
 method is robust because it avoids any interpretation of BLOCK
 structure or other code in the control streams.}
 
-\item{create.dir}{If the directory specified in dir.sims does not
-exists, should it be created? Default is TRUE.}
+\item{create.dirs}{If the directories specified in dir.sims and
+dir.res do not exists, should it be created? Default is TRUE.}
 
 \item{dir.psn}{The directory in which to find PSN's executables
 ('execute' and 'update_inits'). The default is to rely on the
@@ -225,6 +229,31 @@ export from Nonmem.}
 \"linux\" - case insensitive. Windows is only experimentally
 supported. Default is to use \code{Sys.info()[["sysname"]]}.}
 
+\item{dir.res}{Provide a path to a directory in which to save rds
+files with paths to results. Default is to use dir.sims. After
+running `NMreadSim()` on these files, the original simulation
+files can be deleted. Hence, providing both `dir.sims` and
+`dir.res` provides a structure that is simple to
+clean. `dir.sims` can be purged when `NMreadSim` has been run
+and only small `rds` and `fst` files will be kept in
+`dir.res`. Notice, in case multiple models are simulated,
+multiple `rds` (to be read with `NMreadSim()`) files will be
+created by default. In cases where multiple models are
+simulated, see `file.res` to get just one file refering to all
+simulation results.}
+
+\item{file.res}{Path to an rds file that will contain a table of
+the simulated models. This is useful for subsequently
+retrieving all the results using `NMreadSim()`. The default is
+to create a file called `NMsim_paths.rds` under the model
+simulation directory. However, if multiple models are
+simulated, this will result in multiple rds files. Specifying
+a path ensures that one rds file containing information about
+all simulated models will be created.}
+
+\item{quiet}{If TRUE, messages from what is going on will be
+suppressed to the extend implemented.}
+
 \item{...}{Additional arguments passed to \code{method.sim}.}
 }
 \value{
@@ -233,12 +262,12 @@ A data.frame with simulation results (same number of rows
     to simulation control streams.
 }
 \description{
-Supply a data set and an input control stream, and NMsim can
-create neccesary files, run the simulation and read the
-results. It has additional methods for other siulation types
-available, can do multiple simulations at once and more. Please
-see vignettes for an introcution to how to get the most out of
-this.
+Supply a data set and an estimation input control stream, and
+NMsim can create neccesary files (control stream, data files), run
+the simulation and read the results. It has additional methods for
+other simulation types available, can do multiple simulations at
+once and more. Please see vignettes for an introduction to how to
+get the most out of this.
 }
 \details{
 Loosely speaking, the argument \code{method.sim} defines

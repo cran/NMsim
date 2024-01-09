@@ -1,0 +1,20 @@
+ px1: T T T T T S N N 
+ px2u:                 
+ px2a: N M M N N N N N 
+ px2b: M M M M M M M M 
+ px2: N M M N N N N N 
+ px3: G G G G G G N N 
+ px3u: D D D D D D D D 
+ px4: F N N F F F N N 
+ theta to mu map:            0           2           3           0           0           0           0           0
+ sum checks            2           3           6          -1           3           0           3
+ px1: T T T T T S N N 
+ px2u:                 
+ px2a: N M M N N N N N 
+ px2b: M M M M M M M M 
+ px2: N M M N N N N N 
+ px3: G G G G G G N N 
+ px3u: D D D D D D D D 
+ px4: F N N F F F N N 
+ theta to mu map:            0           2           3           0           0           0           0           0
+ sum checks            2           3           6          -1           3           0           0

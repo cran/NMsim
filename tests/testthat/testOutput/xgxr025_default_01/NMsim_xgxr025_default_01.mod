@@ -1,0 +1,49 @@
+$PROBLEM    PK. Tests of modifications to column names in $INPUT
+;; One variable is dropped, BBW is a new name.         
+
+;| Variables 15/20 |;
+$INPUT ROW ID TIME EVID CMT AMT DV MDV BBW
+
+$DATA ./NMsimData_xgxr025_default_01.csv
+IGN=@
+
+$SUBROUTINE ADVAN4 TRANS4
+$PK
+KA=THETA(1)*EXP(ETA(1))
+V2=THETA(2)*(BBW/75)*EXP(ETA(2))
+CL=THETA(3)*EXP(ETA(3))
+V3=THETA(4)*EXP(ETA(4))
+Q=THETA(5)*EXP(ETA(5))
+
+$ERROR
+  IPRED=F
+  IRES=DV-IPRED
+
+  IF (IPRED.GT.1) THEN
+    W = SQRT(IPRED**2*SIGMA(1,1)**2 + SIGMA(2,2)**2)
+  ELSE
+    W=1
+  ENDIF
+
+  IWRES=IRES/W
+  Y=F+F*ERR(1)+ERR(2)
+
+;-----------------------INITIAL ESTIMATES---------------------------------
+$THETA  (0,0.118913) ; POPKA
+$THETA  (0,0.0424325) ; POPCL
+$THETA  (0,0.84335) ; POPV2
+$THETA  (0,0.156763) ; POPV3
+$THETA  (0,561243000) ; POPQ
+$OMEGA  0.107844
+$OMEGA  0  FIX
+$OMEGA  0  FIX
+$OMEGA  0  FIX
+$OMEGA  0  FIX
+$SIGMA  0.223019
+$SIGMA  0.000676192
+
+
+$SIMULATION ONLYSIM (1041610490) 
+
+$TABLE PRED IPRED FILE=NMsim_xgxr025_default_01.tab
+

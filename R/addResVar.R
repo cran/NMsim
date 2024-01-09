@@ -47,7 +47,7 @@
 ##' \dontrun{
 ##' ## based on SIGMA
 ##' simres.var <- addResVar(data=simres,
-##'                         path.ext = "path/to/model.ext"
+##'                         path.ext = "path/to/model.ext",
 ##'                         prop = 1,
 ##'                         add = 2,
 ##'                         par.type = "SIGMA",
@@ -55,7 +55,7 @@
 ##'
 ##' ## If implemented using THETAs
 ##' simres.var <- addResVar(data=simres,
-##'                         path.ext = "path/to/model.ext"
+##'                         path.ext = "path/to/model.ext",
 ##'                         prop = 8, ## point to elements in THETA
 ##'                         add = 9,  ## point to elements in THETA
 ##'                         par.type = "THETA",
@@ -137,11 +137,12 @@ addResVar <- function(data,path.ext,prop=NULL,add=NULL,log=FALSE,par.type="SIGMA
     }
     
     ## get parameter estimates
-    ext <- NMreadExt(path.ext)
+    ## ext <- NMreadExt(path.ext)
+    pars <- NMdata::NMreadExt(path.ext,as.fun="data.table",return="pars")
     nerrs <- length(c(prop,add))
     
-    setnames(ext$pars,"par.type","ext.par.type")
-    pars <- ext$pars[ext.par.type==toupper(par.type)&i%in%c(prop,add)]
+    setnames(pars,"par.type","ext.par.type")
+    pars <- pars[ext.par.type==toupper(par.type)&i%in%c(prop,add)]
 
     name.err <- c()
     if(!is.null(prop)) name.err <- c(name.err,"ERRprop")
