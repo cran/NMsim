@@ -2,7 +2,7 @@
 % Please edit documentation in R/NMsim.R
 \name{NMsim}
 \alias{NMsim}
-\title{Run simulations from an estimated Nonmem model}
+\title{Simulate from an estimated Nonmem model}
 \usage{
 NMsim(
   file.mod,
@@ -215,7 +215,7 @@ Nonmem, or ask a colleague.}
 \item{nmquiet}{Silent messages from Nonmem.}
 
 \item{as.fun}{The default is to return data as a data.frame. Pass
-a function (say tibble::as_tibble) in as.fun to convert to
+a function (say `tibble::as_tibble`) in as.fun to convert to
 something else. If data.tables are wanted, use
 as.fun="data.table". The default can be configured using
 NMdataConf.}
@@ -258,8 +258,8 @@ suppressed to the extend implemented.}
 }
 \value{
 A data.frame with simulation results (same number of rows
-    as input data). If `wait=FALSE` a character vector with paths
-    to simulation control streams.
+    as input data). If `sge=TRUE` a character vector with paths to
+    simulation control streams.
 }
 \description{
 Supply a data set and an estimation input control stream, and

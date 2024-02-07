@@ -4,14 +4,18 @@
 ##' subjects in a data set. Copies over columns that are not varying
 ##' at subject level (i.e. non-variying covariates).
 ##' 
-##' @param doses dosing records Nonmem style
-##' @param time.sim A numerical vector with simulation times
+##' @param doses dosing records Nonmem style (EVID==1 records from a
+##'     data set)
+##' @param time.sim A numerical vector with simulation times. Can also
+##'     be a data.frame in which case it must contain a `TIME` column
+##'     and is merged with subjects found in `doses`. The latter
+##'     feature is experimental.
 ##' @param CMT The compartment in which to insert the EVID=2
 ##'     records. If longer than one, the records will be repeated in
 ##'     all the specified compartments. If a data.frame, covariates
 ##'     can be specified.
 ##' @param as.fun The default is to return data as a data.frame. Pass
-##'     a function (say tibble::as_tibble) in as.fun to convert to
+##'     a function (say `tibble::as_tibble`) in as.fun to convert to
 ##'     something else. If data.tables are wanted, use
 ##'     as.fun="data.table". The default can be configured using
 ##'     NMdataConf.
@@ -68,14 +72,22 @@ addEVID2 <- function(doses,time.sim,CMT,as.fun){
     
     
     to.use <- setdiff(colnames(doses),c("TIME","EVID","CMT","AMT","RATE","MDV","SS","II","ADDL","DV"))
-    covs.doses <- findCovs(doses[,to.use,with=FALSE],by="ID")
+    covs.doses <- findCovs(doses[,to.use,with=FALSE],by="ID",as.fun="data.table")
 
     if(!is.data.frame(time.sim)){
         dt.obs <- data.table(TIME=time.sim)
         dt.obs <- egdt(dt.obs,covs.doses,quiet=TRUE)
     } else {
         if(!"TIME"%in%colnames(time.sim)) stop("When time.sim is a data.frame, it must contain a column called TIME.")
-        dt.obs <- merge(time.sim,covs.doses,all.x=TRUE,allow.cartesian = TRUE)
+        time.sim <- as.data.table(time.sim)
+        cols.by <- intersect(colnames(time.sim),colnames(covs.doses))
+        if(length(cols.by) == 0){
+            ## message("time.sim is a data,frame but no column names overlap with column names in doses. Only the TIME column from time.sim used.")
+            ## return(addEVID2(doses,time.sim$TIME,CMT,as.fun))
+            dt.obs <- egdt(time.sim,covs.doses,quiet=TRUE)
+        } else {
+            dt.obs <- merge(time.sim,covs.doses,all.x=TRUE,allow.cartesian = TRUE)
+        }
     }
     dt.obs[
        ,EVID:=2][
