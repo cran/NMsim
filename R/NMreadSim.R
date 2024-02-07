@@ -50,7 +50,7 @@ NMreadSim <- function(x,check.time=FALSE,as.fun){
     ## if mltiple rds are provided, loop over them
     if(!is.list(x) && is.character(x)) {
         if( length(x)>1 ){
-            res <- lapply(x,NMreadSim) |> rbindlist()
+            res <- rbindlist(lapply(x,NMreadSim),fill=TRUE)
             ## setattr(res,"NMsim-models",tab.paths)
             addClass(res,"NMsimRes")
             return(as.fun(res))
