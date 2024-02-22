@@ -1,5 +1,5 @@
 ## library(devtools)
-if(F){
+## if(F){
 library(NMdata)
 library(data.table)
 data.table::setDTthreads(1)
@@ -38,9 +38,27 @@ test_that("Basic",{
                   dir.sim="testOutput",
                   suffix.sim = "sd1",
                   seed=2342,
-                  execute=FALSE)
+                  execute=FALSE,
+                  method.update.inits="nmsim")
 
     expect_equal_to_reference(sim1,fileRef)
 
 })
+## }
+
+
+if(FALSE){
+
+    file.mod <- "testData/nonmem/xgxr025.mod"
+    sim1 <- NMsim(file.mod=file.mod,
+                  data=dat.sim,
+                  dir.sim="testOutput",
+                  suffix.sim = "sd1",
+                  seed=2342,
+                  ## execute=FALSE,
+                  method.update.inits="nmsim",
+                  
+                  )
+
+
 }

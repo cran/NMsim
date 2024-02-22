@@ -1,7 +1,10 @@
-Wed Feb  7 20:52:44 EST 2024
+Mon Feb 12 19:35:51 EST 2024
 $PROBLEM    018 with 2 comp
-$INPUT      ROW ID TIME EVID CMT AMT DV MDV BBW DOSE
-$DATA      NMsimData_xgxr021_sd1_NMreadSim.csv IGNORE=@
+$INPUT ROW ID TIME EVID CMT AMT DV MDV BBW DOSE
+
+$DATA  ../NMsimData_xgxr021_sd1_NMreadSim.csv
+IGN=@
+
 $SUBROUTINE ADVAN4 TRANS4
 $PK
 TVKA=THETA(1)
@@ -43,7 +46,12 @@ $OMEGA  0  FIX
 $OMEGA  0  FIX
 $SIGMA  0.0822435
 $SIGMA  0  FIX
-$SIMULATION ONLYSIM (2342)
+
+
+
+
+$SIMULATION ONLYSIM (2342) 
+
 $TABLE      ROW TVKA TVV2 TVV3 TVCL KA V2 V3 CL Q PRED IPRED Y NOPRINT
             FILE=NMsim_xgxr021_sd1_NMreadSim.tab
 
@@ -64,8 +72,8 @@ NM-TRAN MESSAGES
 
 License Registered to: Temporary license for Vertex
 Expiration Date:    12 FEB 2024
-Current Date:        7 FEB 2024
-  **** WARNING!!! Days until program expires :   5 ****
+Current Date:       12 FEB 2024
+  **** WARNING!!! Days until program expires :   0 ****
   **** CONTACT idssoftware@iconplc.com FOR RENEWAL ****
 1NONLINEAR MIXED EFFECTS MODEL PROGRAM (NONMEM) VERSION 7.5.0
  ORIGINALLY DEVELOPED BY STUART BEAL, LEWIS SHEINER, AND ALISON BOECKMANN
@@ -205,6 +213,6 @@ SEED   1 RESET TO INITIAL: YES
  Elapsed simulation  time in seconds:     0.00
  ESTIMATION STEP OMITTED:                 YES
  Elapsed finaloutput time in seconds:     0.00
- #CPUT: Total CPU Time in Seconds,        0.025
+ #CPUT: Total CPU Time in Seconds,        0.026
 Stop Time:
-Wed Feb  7 20:52:49 EST 2024
+Mon Feb 12 19:35:56 EST 2024

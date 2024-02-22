@@ -39,7 +39,9 @@ NMsim(
   system.type = NULL,
   dir.res,
   file.res,
+  wait,
   quiet = FALSE,
+  check.mod = TRUE,
   ...
 )
 }
@@ -199,10 +201,14 @@ row identifier. If none is supplied,
 already exists in the data set, it will be used as is, if not
 it will be added.}
 
-\item{args.NMscanData}{If \code{execute=TRUE&sge=FALSE}, NMsim will normally
-read the results using \code{NMreadSim}. Use this argument
-to pass additional arguments (in a list) to that function if
-you want the results to be read in a specific way.}
+\item{args.NMscanData}{If \code{execute=TRUE&sge=FALSE}, NMsim
+will normally read the results using \code{NMreadSim}. Use
+this argument to pass additional arguments (in a list) to that
+function if you want the results to be read in a specific
+way. This can be if the model for some reason drops rows, and
+you need to merge by a row identifier. You would do
+`args.NMscanData=list(col.row="ROW")` to merge by a column
+called `ROW`. This is only used in rare cases.}
 
 \item{path.nonmem}{The path to the Nonmem executable to use. The
 could be something like "/usr/local/NONMEM/run/nmfe75" (which
@@ -249,8 +255,22 @@ simulated, this will result in multiple rds files. Specifying
 a path ensures that one rds file containing information about
 all simulated models will be created.}
 
+\item{wait}{Wait for simulations to finish? Default is to do so if
+simulations are run locally but not to if they are sent to the
+cluster. Waiting for them means that the results will be read
+when simulations are done. If not waiting, path(s) to `rds`
+files to read will be returned. Pass them through
+`NMreadSim()` (which also supports waiting for the simulations
+to finish).}
+
 \item{quiet}{If TRUE, messages from what is going on will be
 suppressed to the extend implemented.}
+
+\item{check.mod}{Check the provided control streams for contents
+that may cause issues for simulation. Default is `TRUE`, and
+it is only recommended to disable this if you are fully aware
+of such a feature of your control stream, you know how it
+impacts simulation, and you want to get rid of warnings.}
 
 \item{...}{Additional arguments passed to \code{method.sim}.}
 }

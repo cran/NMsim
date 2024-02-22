@@ -1,6 +1,6 @@
-$PROBLEM    PK. Tests of modifications to column names in $INPUT
-;; One variable is dropped, BBW is a new name.         
+$PROBLEM PK. Tests of modifications to column names in $INPUT
 
+;; One variable is dropped, BBW is a new name.         
 ;| Variables 15/20 |;
 $INPUT ROW ID TIME EVID CMT AMT DV MDV BBW DOSE
 
@@ -8,6 +8,7 @@ $DATA ./NMsimData_xgxr025_sd1.csv
 IGN=@
 
 $SUBROUTINE ADVAN4 TRANS4
+
 $PK
 KA=THETA(1)*EXP(ETA(1))
 V2=THETA(2)*(BBW/75)*EXP(ETA(2))
@@ -29,23 +30,27 @@ $ERROR
   Y=F+F*ERR(1)+ERR(2)
 
 ;-----------------------INITIAL ESTIMATES---------------------------------
-$THETA  (0,0.118913) ; POPKA
-$THETA  (0,0.0424325) ; POPCL
-$THETA  (0,0.84335) ; POPV2
-$THETA  (0,0.156763) ; POPV3
-$THETA  (0,561243000) ; POPQ
-$OMEGA  0.107844
-$OMEGA  0  FIX
-$OMEGA  0  FIX
-$OMEGA  0  FIX
-$OMEGA  0  FIX
-$SIGMA  0.223019
-$SIGMA  0.000676192
+$THETA
+0.118913 FIX
+0.0424325 FIX
+0.84335 FIX
+0.156763 FIX
+561243000 FIX
+
+$OMEGA 0.107844
+$OMEGA 0 FIX
+$OMEGA 0 FIX
+$OMEGA 0 FIX
+$OMEGA 0 FIX
+
+$SIGMA 0.223019
+$SIGMA 0.000676192
+
 
 
 $SIMULATION ONLYSIM (2342) 
 
-$TABLE      ROW KA V3 Q NOHEADER FIRSTONLY FILE=NMsim_xgxr025_sd1_1.tab
-$TABLE      ROW KA V2 CL ONEHEADER FIRSTONLY FILE=NMsim_xgxr025_sd1_2.tab
-$TABLE      ROW ID DV PRED IPRED FILE=NMsim_xgxr025_sd1_3.tab
+$TABLE ROW KA V3 Q NOHEADER FIRSTONLY FILE=NMsim_xgxr025_sd1_1.tab 
+$TABLE ROW KA V2 CL ONEHEADER FIRSTONLY FILE=NMsim_xgxr025_sd1_2.tab
+$TABLE ROW ID DV PRED IPRED FILE=NMsim_xgxr025_sd1_3.tab 
 
