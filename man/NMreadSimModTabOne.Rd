@@ -11,6 +11,7 @@ NMreadSimModTabOne(
   wait = FALSE,
   quiet = FALSE,
   skip.missing = FALSE,
+  progress,
   as.fun
 )
 }
@@ -22,12 +23,12 @@ preserve the file modification times. Becasue of that,
 `check.time` is `FALSE` by default.}
 
 \item{dir.sims}{By default, `NMreadSim` will use information about
-the relative path from the results table file (`_paths.rds`)
+the relative path from the results table file (`_MetaData.rds`)
 to the Nonmem simulation results. If these paths have changed,
 or for other reasons this doesn't work, you can use the
 `dir.sims` argument to specify where to find the Nonmem
 simulation results. If an `.fst` file was already generated
-and is found next to the `_paths.rds`, the path to the Nonmem
+and is found next to the `_MetaData.rds`, the path to the Nonmem
 simulation results is not used.}
 
 \item{wait}{If simulations seem to not be done yet, wait for them
@@ -40,6 +41,11 @@ generated.  Default is not to wait.}
 
 \item{quiet}{Turn off some messages about what is going on?
 Default is to report the messages.}
+
+\item{progress}{Track progress? Default is `TRUE` if `quiet` is
+FALSE and more than one model is being read. The progress
+tracking is based on the number of models completed/read, not
+the status of the individual models.}
 
 \item{as.fun}{The default is to return data as a data.frame. Pass
 a function (say `tibble::as_tibble`) in as.fun to convert to

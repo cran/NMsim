@@ -30,7 +30,7 @@ NMcreateMatLines <- function(omegas,type){
     omegas.long[hasOff==TRUE,maxOff:=max(j[abs(value)>1e-9]-i),by=.(i)]
 
     
-    
+
     is <- unique(omegas.long$i)
 
     i.idx <- 1
@@ -43,7 +43,10 @@ NMcreateMatLines <- function(omegas,type){
         i.this <- is[i.idx]
         nis.block <- omegas.long[i==i.this,unique(maxOff)]
         if(nis.block>0){
-            
+            ## omegas.this <- omegas.long[i>=i.this&i<=(i.this+nis.block)&j<=(i.this+nis.block)]
+            ## omegas.this[,value.use:=value]
+            values.this[values.this==0] <- 1e-30
+
             values.this <- omegas.long[i>=i.this&i<=(i.this+nis.block)&j<=(i.this+nis.block),value]
             values.this[values.this==0] <- 1e-30
             res <- paste0("BLOCK(",nis.block+1,") FIX ",paste(values.this,collapse=" "))
