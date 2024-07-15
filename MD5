@@ -1,7 +1,7 @@
-fa8136d65707e3c1a443e28953e6998b *DESCRIPTION
+0d645720abe1a61afd23d81d7c7b51d4 *DESCRIPTION
 1b54f9d1f7f1b5d3cc24b43761e6e90b *LICENSE
 a04a001582e664dadd897f178905fac0 *NAMESPACE
-60ddcf62024c9fd118aa4fdba90ced4e *NEWS.md
+55a7713f5a52febf3d0b25d5aeda63f6 *NEWS.md
 c7ed3fbd3155dc5ecfd3fad50becb94d *R/NMcreateDoses.R
 e26e55eb96efccd39bb833ade164a08a *R/NMcreateMatLines.R
 dc280bb0f9ebcd534b97c80608b1da9f *R/NMexec.R
@@ -365,7 +365,7 @@ bc92c52f56b74462b7e1bb77435d65a7 *tests/testthat/testReference/rbind_NMsimRes_01
 569057a678b957ded28ccc7010c910e0 *tests/testthat/test_NMcreateDoses.R
 dd482e6102ae67dc2268bbe2ac50a637 *tests/testthat/test_NMreadSim.R
 b747a7ab28759dd51b0da63a4baacf35 *tests/testthat/test_NMseed.R
-34661a23e8989b7cf890e8568b8acdd8 *tests/testthat/test_NMsim.R
+ae47f92af990a015847dfbb0a6144755 *tests/testthat/test_NMsim.R
 825d59f05ba1bd7b94c0691df148eda9 *tests/testthat/test_NMsim_default.R
 8459b476900a5c69dc5039d9d163cd5d *tests/testthat/test_addEVID2.R
 ae89ac6acba641ecfcb19a68b4d265bc *tests/testthat/test_addResVar.R
