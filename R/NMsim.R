@@ -216,6 +216,7 @@
 ##'     you need to merge by a row identifier. You would do
 ##'     `args.NMscanData=list(col.row="ROW")` to merge by a column
 ##'     called `ROW`. This is only used in rare cases.
+##'
 ##' @param system.type A charachter string, either \"windows\" or
 ##'     \"linux\" - case insensitive. Windows is only experimentally
 ##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
@@ -250,9 +251,18 @@
 ##'     files to read will be returned. Pass them through
 ##'     `NMreadSim()` (which also supports waiting for the simulations
 ##'     to finish).
+##' @param clean The degree of cleaning (file removal) to do after
+##'     Nonmem execution. If `method.execute=="psn"`, this is passed
+##'     to PSN's `execute`. If `method.execute=="nmsim"` a similar
+##'     behavior is applied, even though not as granular. NMsim's
+##'     internal method only distinguishes between 0 (no cleaning),
+##'     any integer 1-4 (default, quite a bit of cleaning) and 5
+##'     (remove temporary dir completely).
 ##' @param quiet If TRUE, messages from what is going on will be
 ##'     suppressed.
-##' @param nmquiet Silent messages from Nonmem. The default is `TRUE`.
+##' @param nmquiet Silent console messages from Nonmem? The default
+##'     behaviour depends. It is FALSE if there is only one model to
+##'     execute and `progress=FALSE`.
 ##' @param progress Track progress? Default is `TRUE` if `quiet` is
 ##'     FALSE and more than one model is being simulated. The progress
 ##'     tracking is based on the number of models completed, not the
@@ -365,22 +375,23 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
                   col.row,
                   args.NMscanData,
                   path.nonmem=NULL,
-                  nmquiet=TRUE
-                 ,progress
-                 ,as.fun
-                 ,suffix.sim
-                 ,text.table
-                 ,system.type=NULL
-                 ,dir.res
-                 ,file.res
-                 ,wait
-                 ,auto.dv=TRUE
-                 ,quiet=FALSE
-                 ,check.mod = TRUE
-                 ,seed
-                 ,list.sections
-                 ,format.data.complete="rds"
-                 ,...
+                  nmquiet,
+                  progress,
+                 as.fun,
+                 suffix.sim,
+                 text.table,
+                 system.type=NULL,
+                 dir.res,
+                 file.res,
+                 wait,
+                 auto.dv=TRUE,
+                 clean,
+                 quiet=FALSE,
+                 check.mod = TRUE,
+                 seed,
+                 list.sections,
+                 format.data.complete="rds",
+                 ...
                   ){
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
     
@@ -408,6 +419,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     ID <- NULL
     is.data <- NULL
     known <- NULL
+    MDV <- NULL
     model <- NULL
     mod <- NULL
     name.mod <- NULL
@@ -465,27 +477,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         lapply(file.mod,NMsimCheckMod)
     }
     if(missing(data)) data <- NULL
-    
-    ## dir.psn - should use NMdataConf setup
-    if(missing(dir.psn)) dir.psn <- NULL
-    dir.psn <- try(NMdata:::NMdataDecideOption("dir.psn",dir.psn),silent=TRUE)
-    if(inherits(dir.psn,"try-error")){
-        dir.psn <- NULL
-        dir.psn <- simpleCharArg("dir.psn",dir.psn,"",accepted=NULL,lower=FALSE)
-    }
-    file.psn <- function(dir.psn,file.psn){
-        if(dir.psn=="") return(file.psn)
-        file.path(dir.psn,file.psn)
-    }
-    
-    ## path.nonmem
-    if(missing(path.nonmem)) path.nonmem <- NULL
-    path.nonmem <- try(NMdata:::NMdataDecideOption("path.nonmem",path.nonmem),silent=TRUE)
-    if(inherits(path.nonmem,"try-error")){
-        path.nonmem <- NULL
-        
-        path.nonmem <- simpleCharArg("path.nonmem",path.nonmem,default=NULL,accepted=NULL,lower=FALSE)
-    }
+
 
     if(missing(args.NMscanData)) args.NMscanData <- NULL
     if(!is.null(args.NMscanData)){
@@ -493,13 +485,14 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         if(any(names(args.NMscanData)=="")) stop("All elements in args.NMscanData must be named.")
     }
     args.NMscanData.default <- list(merge.by.row=FALSE)
-
+    
     if(missing(progress)) progress <- NULL
     
-    if(missing(system.type)) system.type <- NULL
-    system.type <- getSystemType(system.type)
+    if(missing(dir.psn)) dir.psn <- NULL
+    if(missing(path.nonmem)) path.nonmem <- NULL
+    if(missing(method.execute)) method.execute <- NULL
+    NMsimConf <- NMsimTestConf(path.nonmem=path.nonmem,dir.psn=dir.psn,method.execute=method.execute,must.work=execute)
 
-    
     
     ## after definition of wait and wait.exec, wait is used by
     ## NMreadSim(), wait.exec used by NMexec().
@@ -513,35 +506,20 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
 
     if(nc>1){message("nc>1 may not work depending on your system configuration. It has only been tested on linux. Please notice there are other and most often more efficient methods to speed up simulations. See discussions on the NMsim website.")}
     
-    ## method.execute
-    if(missing(method.execute)) method.execute <- NULL
-    ## if path.nonmem is provided, default method.execute is directory. If not, it is psn
-    if(is.null(path.nonmem)) {
-        method.execute.def <- "psn"
-    } else {
-        method.execute.def <- "nmsim"
-    }
-    method.execute <- simpleCharArg("method.execute",method.execute,method.execute.def,cc(psn,direct,nmsim))
-    if(method.execute%in%cc(direct,nmsim) && is.null(path.nonmem)){
-        stop("When method.execute is direct or nmsim, path.nonmem must be provided.")
-    }
 
-    if(system.type=="windows"){
-        message('Windows support is new in NMsim and may be limited. You may need to avoid spaces and some special characters in directory and file names.')
-    }
-    
     ## args.psn.execute
     if(missing(args.psn.execute)) args.psn.execute <- NULL
-    args.psn.execute <- simpleCharArg("args.psn.execute"
-                                     ,args.psn.execute
-                                     ,default="-clean=5 -model_dir_name -nm_output=xml,ext,cov,cor,coi,phi"
-                                     ,accepted=NULL
-                                     ,clean=FALSE
-                                     ,lower=FALSE)
+    ## args.psn.execute <- simpleCharArg("args.psn.execute"
+    ##                                  ,args.psn.execute
+    ##                                  ,default="-clean=5 -model_dir_name -nm_output=xml,ext,cov,cor,coi,phi"
+    ##                                  ,accepted=NULL
+    ##                                  ,clean=FALSE
+    ##                                  ,lower=FALSE)
+    if(missing(clean)) clean <- 1
     
 
     if(missing(file.ext)) file.ext <- NULL
-    method.update.inits <- adjust.method.update.inits(method.update.inits,system.type=system.type,file.psn=file.psn,dir.psn=dir.psn,cmd.update.inits=cmd.update.inits,file.ext=file.ext)
+    method.update.inits <- adjust.method.update.inits(method.update.inits,system.type=NMsimConf$system.type,dir.psn=NMsimConf$dir.psn,cmd.update.inits=cmd.update.inits,file.ext=file.ext)
     
     
 
@@ -562,7 +540,6 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         seed.nm <- seed
         seed <- NULL
     }
-
 
 
     
@@ -615,7 +592,6 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     }
 
 
-    
 ###  Section end: Checking aguments
 
     ## if(!is.null(transform) && !transform!=FALSE) {message("transform is CURRENTLY NOT SUPPORTED. Will be back in the future.")}
@@ -641,6 +617,8 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         }
         message("argument \'text.table\' is deprecated. Please use \'table.vars\' and/or \'table.options\' instead.")
     }
+
+    if(missing(nmquiet)) nmquiet <- NULL
 
     if(missing(modelname)) modelname <- NULL
     ## modelname <- NMdataDecideOption("modelname",modelname)
@@ -706,8 +684,10 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     if(missing(subproblems)|| is.null(subproblems)) subproblems <- 0
 
     if(subproblems>0 &&
-       !is.null(table.vars) &&
-       packageVersion("NMdata")<"1.1.7"){
+       !is.null(table.vars)
+       ## this has not been resolved in NMdata
+       ## && packageVersion("NMdata")<"1.1.7"
+       ){
         tabv2 <- paste(table.vars,collapse=" ")
         tabv2 <- gsub(" +"," ",tabv2 )
         if(length(strsplit(tabv2," ")[[1]])<3){
@@ -778,11 +758,15 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         dt.models[,data.name:=""]
     } else {
         if(auto.dv){
+            
             data <- lapply(data,function(x){
                 if("DV"%in%colnames(x)){
                     x
                 } else {
-                    x[,DV:=NA]
+                    x[,DV:=NA_real_]
+                    if(!"MDV"%in%colnames(x)){
+                        x[,MDV:=1]
+                    }
                     x
                 }})
         }
@@ -855,12 +839,12 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         dt.models[,path.results:=fnAppend(fnExtension(file.res,"fst"),"ResultsData")]
     }
 
-    ### path.rds.exists is whether the metadata rds existed prior to this function call. We don't want to save that in dt.models
+### path.rds.exists is whether the metadata rds existed prior to this function call. We don't want to save that in dt.models
     path.rds.exists <- dt.models[,file.exists(path.rds)]
 ### reading results from prior run
     ## if(reuse.results && all(dt.models[,path.rds.exists==TRUE])){
     ## if(reuse.results && all(dt.models[,path.rds.exists==TRUE])){
-if(reuse.results && all(path.rds.exists==TRUE)){
+    if(reuse.results && all(path.rds.exists==TRUE)){
         if(!quiet) message(sprintf("Reading from simulation results on file:\n%s",dt.models[,paste(unique(path.rds),collapse="\n")]))
         simres <- try(NMreadSim(dt.models[,path.rds],wait=wait,quiet=quiet,progress=progress))
         if(!inherits(simres,"try-error")) {
@@ -912,23 +896,26 @@ if(reuse.results && all(path.rds.exists==TRUE)){
     
     if(method.update.inits=="psn"){
 ### this next line is done already. I think it should be removed but testing needed.
-        cmd.update.inits <- file.psn(dir.psn,"update_inits")
+        cmd.update.inits <- file.psn(NMsimConf$dir.psn,"update_inits")
 
         dt.models[,
         {
-            if(!file.exists(fnExtension(file.mod,"lst"))){stop("When using method.update.inits=\"psn\", an output control stream with file name extensions .lst must be located next to the input control stream. Consider also `method.update.inits=\"nmsim\"`.")}
+            if(!file.exists(fnExtension(file.mod,"lst"))){
+                stop("When using method.update.inits=\"psn\", an output control stream with file name extensions .lst must be located next to the input control stream. Consider also `method.update.inits=\"nmsim\"`.")
+            }
             cmd.update <- sprintf("%s --output_model=\"%s\" \"%s\"",normalizePath(cmd.update.inits,mustWork=FALSE),fn.sim.tmp,normalizePath(file.mod))
 ### would be better to write to another location than next to estimation model
             ## cmd.update <- sprintf("%s --output_model=%s %s",cmd.update.inits,file.path(".",fn.sim.tmp),file.mod)
-            if(system.type=="linux"){
+            if(NMsimConf$system.type=="linux"){
                 ## print(paste(cmd.update,"2>/dev/null"))
+                
                 sys.res <- system(paste(cmd.update,"2>/dev/null"),wait=TRUE)
                 
                 if(sys.res!=0){
                     stop("update_inits failed. Please look into this. Is the output control stream available? Is it in a directory where you have write-access?")
                 }
             }
-            if(system.type=="windows"){
+            if(NMsimConf$system.type=="windows"){
                 cmd.update <- sprintf("\"%s\" --output_model=\"%s\" \"%s\"",normalizePath(cmd.update.inits),fn.sim.tmp,normalizePath(file.mod))
                 script.update.inits <- file.path(dirname(file.mod),"script_update_inits.bat")
                 writeTextFile(cmd.update,script.update.inits)
@@ -1054,7 +1041,7 @@ if(reuse.results && all(path.rds.exists==TRUE)){
     
     
 ###  Section end: Output tables
-    
+#### DEBUG Does the sim control stream have TABLES at this point?    
 
 #### Section start: Additional control stream modifications specified by user - modify.model ####
     if( !is.null(modify.model) ){
@@ -1090,20 +1077,20 @@ if(reuse.results && all(path.rds.exists==TRUE)){
     
     ## if multiple models have been spawned, and files.needed has been generated, the only allowed method.execute is "nmsim"
     if(nrow(dt.models.gen)>1 && "files.needed"%in%colnames(dt.models.gen)){
-        if(method.execute!="nmsim"){
+        if(NMsimConf$method.execute!="nmsim"){
             stop("Multiple simulation runs spawned, and they need additional files than the simulation input control streams. The only way this is supported is using method.execute=\"nmsim\".")
         }
     }
     
     ## if files.needed, psn execute cannot be used.
     if("files.needed"%in%colnames(dt.models.gen)){
-        if(method.execute=="psn"){
+        if(NMsimConf$method.execute=="psn"){
             stop("method.execute=\"psn\" cannot be used with simulation methods that need additional files to run. Try method.execute=\"nmsim\".")
         }
     }
     ## if multiple models spawned, direct is not allowed
     if(nrow(dt.models.gen)>1){
-        if(method.execute=="direct"){
+        if(NMsimConf$method.execute=="direct"){
             stop("method.execute=\"direct\" cannot be used with simulation methods that spawn multiple simulation runs. Try method.execute=\"nmsim\" or method.execute=\"psn\".")
         }
     }
@@ -1160,6 +1147,12 @@ if(reuse.results && all(path.rds.exists==TRUE)){
     
     
 ### seed and subproblems
+    paste.end <- function(x,add,...){
+        c(x[0:(length(x)-1)],
+          paste(x[length(x)],add,...)
+          )
+    }
+    
     if(do.seed || subproblems>0){
         dt.models[,{
             
@@ -1174,17 +1167,23 @@ if(reuse.results && all(path.rds.exists==TRUE)){
                 warning("More than one simulation section found. Subproblems and seed will not be applied.")
             }
             if(n.sim.sections == 1 ){
+                
                 name.sim <- names.sections[grepl("^(SIM|SIMULATION)$",names.sections)]
                 section.sim <- all.sections.sim[[name.sim]]
                 
                 section.sim <- gsub("\\([0-9]+\\)","",section.sim)
-                section.sim <- paste(section.sim,seed)
+                
+### pasting the seed after SIM(ULATION) and after ONLYSIM(ULATION) if the latter exists
+                section.sim <- sub("(SIM(ULATION)*( +ONLYSIM(ULATION)*)*) *",paste("\\1",seed),section.sim)
+                ## section.sim <- paste.end(section.sim,seed)
                                         #}
                 if(subproblems>0){
                     section.sim <- gsub("SUBPROBLEMS *= *[0-9]*"," ",section.sim)
-                    section.sim <- paste(section.sim,sprintf("SUBPROBLEMS=%s",subproblems))
+                    ## section.sim <- paste(section.sim,sprintf("SUBPROBLEMS=%s",subproblems))
+                    section.sim <- paste.end(section.sim,sprintf("SUBPROBLEMS=%s",subproblems))
                 }
-                section.sim <- paste(section.sim,text.sim)
+                ## section.sim <- paste(section.sim,text.sim)
+                section.sim <- paste.end(section.sim,text.sim)
                 lines.sim <- NMdata:::NMwriteSectionOne(lines=lines.sim,section="simulation",newlines=section.sim,quiet=TRUE,backup=FALSE)
                 writeTextFile(lines.sim,path.sim)
             }
@@ -1228,9 +1227,9 @@ if(reuse.results && all(path.rds.exists==TRUE)){
 ##### Messaging user
         if(!quiet) {
             if(wait.exec){
-                message(paste("* Executing Nonmem job(s)",ifelse(method.execute=="psn","(using PSN)","")))
+                message(paste("* Executing Nonmem job(s)",ifelse(NMsimConf$method.execute=="psn","(using PSN)","")))
             } else {
-                message(paste0("* Starting Nonmem job(s)",ifelse(method.execute=="psn"," (using PSN)","")," in background"))
+                message(paste0("* Starting Nonmem job(s)",ifelse(NMsimConf$method.execute=="psn"," (using PSN)","")," in background"))
             }
         }
 
@@ -1248,6 +1247,10 @@ if(reuse.results && all(path.rds.exists==TRUE)){
             do.pb <- progress
         }
 
+        if(is.null(nmquiet)){
+            nmquiet <- !(dt.models[,.N]==1 && !do.pb && !quiet)
+        }
+        
         if(do.pb){
             ## set up progress bar
             pb <- txtProgressBar(min = 0,      # Minimum value of the progress bar
@@ -1278,8 +1281,19 @@ if(reuse.results && all(path.rds.exists==TRUE)){
                 unlink(path.sim.lst)
 
             }
+
             
-            NMexec(files=path.sim,sge=sge,nc=nc,wait=wait.exec,args.psn.execute=args.psn.execute,nmquiet=nmquiet,quiet=TRUE,method.execute=method.execute,path.nonmem=path.nonmem,dir.psn=dir.psn,files.needed=files.needed.n,input.archive=input.archive,system.type=system.type,dir.data="..")
+            NMexec(files=path.sim,sge=sge,nc=nc,wait=wait.exec,
+                   args.psn.execute=args.psn.execute,nmquiet=nmquiet,quiet=TRUE,
+                   method.execute=NMsimConf$method.execute,
+                   path.nonmem=NMsimConf$path.nonmem,
+                   dir.psn=NMsimConf$dir.psn,
+                   system.type=NMsimConf$system.type,
+                   files.needed=files.needed.n,
+                   input.archive=input.archive,
+                   dir.data="..",
+                   clean=clean,
+                   backup=FALSE)
             
             ## simres.n <- list(lst=path.sim.lst)
             ## simres.n

@@ -16,11 +16,13 @@ NMexec(
   args.psn.execute,
   update.only = FALSE,
   nmquiet = FALSE,
-  method.execute = "psn",
+  method.execute,
   dir.psn,
   path.nonmem,
   system.type,
   files.needed,
+  clean = 1,
+  backup = TRUE,
   quiet = FALSE
 )
 }
@@ -60,7 +62,7 @@ to be available for further processing.}
 
 \item{args.psn.execute}{A character string with arguments passed
 to execute. Default is
-"-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi,shk".}
+"-model_dir_name -nm_output=coi,cor,cov,ext,phi,shk,xml".}
 
 \item{update.only}{Only run model(s) if control stream or data
 updated since last run?}
@@ -118,6 +120,18 @@ supported. Default is to use \code{Sys.info()[["sysname"]]}.}
 specifies files to be copied into the temporary directory
 before Nonmem is run. Input control stream and simulation
 input data does not need to be specified.}
+
+\item{clean}{The degree of cleaning (file removal) to do after
+Nonmem execution. If `method.execute=="psn"`, this is passed
+to PSN's `execute`. If `method.execute=="nmsim"` a similar
+behavior is applied, even though not as granular. NMsim's
+internal method only distinguishes between 0 (no cleaning),
+any integer 1-4 (default, quite a bit of cleaning) and 5
+(remove temporary dir completely).}
+
+\item{backup}{Before running, should existing results files be
+backed up in a sub directory? If not, the files will be
+deleted before running.}
 
 \item{quiet}{Suppress messages on what NMexec is doing? Default is
 FALSE.}

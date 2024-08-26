@@ -31,7 +31,7 @@
 ##'     to be available for further processing.
 ##' @param args.psn.execute A character string with arguments passed
 ##'     to execute. Default is
-##'     "-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi,shk".
+##'     "-model_dir_name -nm_output=coi,cor,cov,ext,phi,shk,xml".
 ##' @param update.only Only run model(s) if control stream or data
 ##'     updated since last run?
 ##' @param nmquiet Suppress terminal output from `Nonmem`. This is
@@ -82,6 +82,16 @@
 ##' @param system.type A charachter string, either \"windows\" or
 ##'     \"linux\" - case insensitive. Windows is only experimentally
 ##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
+##' @param clean The degree of cleaning (file removal) to do after
+##'     Nonmem execution. If `method.execute=="psn"`, this is passed
+##'     to PSN's `execute`. If `method.execute=="nmsim"` a similar
+##'     behavior is applied, even though not as granular. NMsim's
+##'     internal method only distinguishes between 0 (no cleaning),
+##'     any integer 1-4 (default, quite a bit of cleaning) and 5
+##'     (remove temporary dir completely).
+##' @param backup Before running, should existing results files be
+##'     backed up in a sub directory? If not, the files will be
+##'     deleted before running. 
 ##' @param quiet Suppress messages on what NMexec is doing? Default is
 ##'     FALSE.
 ##' @details Use this to read the archived input data when retrieving
@@ -119,8 +129,8 @@
 NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
                    nc=64,dir.data=NULL,wait=FALSE, args.psn.execute,
                    update.only=FALSE,nmquiet=FALSE,
-                   method.execute="psn",dir.psn,path.nonmem,system.type,
-                   files.needed,quiet=FALSE){
+                   method.execute,dir.psn,path.nonmem,system.type,
+                   files.needed,clean=1,backup=TRUE,quiet=FALSE){
     
     
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
@@ -128,35 +138,23 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
     nid <- NULL
     input <- NULL
     result <- NULL
+    name <- NULL
     
 ### Section end: Dummy variables, only not to get NOTE's in pacakge checks
-    
-    ## dir.psn
-    if(missing(dir.psn)) dir.psn <- NULL
-    dir.psn <- try(NMdata:::NMdataDecideOption("dir.psn",dir.psn))
-    if(inherits(dir.psn,"try-error")){
-        dir.psn <- NULL
-        dir.psn <- simpleCharArg("dir.psn",dir.psn,"",accepted=NULL,lower=FALSE)
-    }
-    fun.file.psn <- function(dir.psn,file.psn){
-        if(dir.psn=="") return(file.psn)
-        file.path(dir.psn,file.psn)
-    }
-    cmd.execute <- fun.file.psn(dir.psn,"execute")
 
-    method.execute <- tolower(gsub(" ","",method.execute))
-    if(!method.execute %in% c("psn","direct","nmsim")){
-        stop("method.execute must be one of psn, direct, and nmsim.")
-    }
-    
-    ## path.nonmem
-    ## if(missing(path.nonmem)||is.null(path.nonmem)) path.nonmem <- "nmfe75"
+    if(missing(dir.psn)) dir.psn <- NULL
     if(missing(path.nonmem)) path.nonmem <- NULL
-    path.nonmem <- try(NMdata:::NMdataDecideOption("path.nonmem",path.nonmem))
-    if(inherits(path.nonmem,"try-error")){
-        path.nonmem <- NULL
-        path.nonmem <- simpleCharArg("path.nonmem",path.nonmem,NULL,accepted=NULL,lower=FALSE)
-    }
+    if(missing(method.execute)) method.execute <- NULL
+    if(missing(system.type)) system.type <- NULL
+    if(missing(files.needed)) files.needed <- NULL
+    
+    NMsimConf <- NMsimTestConf(path.nonmem=path.nonmem,method.execute=method.execute,system.type=system.type)
+    ## todo integrate in NMsimTestConf
+
+    cmd.execute <- file.psn(NMsimConf$dir.psn,"execute")
+
+    
+    ## system.type <- getSystemType(system.type)
 
 
     if(missing(input.archive)||is.null(input.archive)){
@@ -166,14 +164,16 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
         input.archive <- function(file) FALSE
     }
 
-    if(missing(system.type)) system.type <- NULL
-    system.type <- getSystemType(system.type)
-
+    if(missing(nc)) nc <- NULL
+    nc <- NMdata:::NMdataDecideOption("nc",nc,allow.unknown = TRUE)
+    if(is.null(nc)) nc <- 64
+    
+    
     ## args.psn.execute
     if(missing(args.psn.execute)) args.psn.execute <- NULL
     args.psn.execute <- simpleCharArg("args.psn.execute"
                                      ,args.psn.execute
-                                     ,default="-model_dir_name -nm_output=xml,ext,cov,cor,coi,phi,shk"
+                                     ,default=sprintf("-clean=%s -model_dir_name -nm_output=coi,cor,cov,ext,phi,shk,xml",clean)
                                      ,accepted=NULL
                                      ,clean=FALSE
                                      ,lower=FALSE)
@@ -205,7 +205,6 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
         ## files.exec <- findUpdated(fnExtension(files.all,"lst"))
         files.exec <- findUpdated(files.all)
     }
-
     
     for(file.mod in files.exec){
         file.mod <- NMdata:::filePathSimple(file.mod)
@@ -219,30 +218,54 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
         ## replace extension of fn.input based on path.input - prefer rds
         rundir <- dirname(file.mod)
 
+        exts <- c("\\.cov","\\.cor","\\.coi","\\.ext","\\.lst",".*msf","\\.msfi","\\.msfo","\\.phi","_input\\.rds","\\.shk","\\.xml")
+        exts.string <- paste0("(",paste(exts,collapse="|"),")")
+
+### backup previous results if any:
+        
+        files.found <- c(
+            list.files(rundir,pattern=sprintf("%s%s",fnExtension(basename(file.mod),""),exts.string)),
+            list.files(rundir,pattern=paste0("(",paste(NMscanTables(file.mod,meta.only=TRUE,as.fun="data.table")[,name],collapse="|"),")"))
+        )
+        ## make sure files.found does not contain input control stream or input data
+        if(length(files.found)){
+            if(backup){
+                dir.backup <- file.path(rundir,paste0("backup_",fnExtension(basename(file.mod),"")))
+                if(dir.exists(dir.backup)){
+                    unlink(dir.backup,recursive=TRUE)
+                }
+                dir.create(dir.backup)
+                lapply(c(files.found),function(f) file.rename(
+                                                   from=file.path(rundir,f),
+                                                   to=file.path(dir.backup,f)
+                                                  ))
+                file.copy(file.mod,dir.backup)
+            } else {
+                lapply(file.path(rundir,files.found),unlink)
+            }
+        }
+        
         if(!isFALSE(input.archive(file.mod))){
             fn.input <- input.archive(file.mod)
 
             ## copy input data
-            if(packageVersion("NMdata")<"0.1.1"){
-                dat.inp <- NMscanInput(file=file.mod,translate=FALSE,applyFilters = FALSE,file.data="extract",dir.data=dir.data,quiet=TRUE)
-            } else {
-                ## dat.inp <- NMscanInput(file=file.mod,translate=FALSE,apply.filters = FALSE,file.data="extract",dir.data=dir.data,quiet=TRUE)
-                dat.inp <- NMscanInput(file=file.mod,file.mod=file.mod,translate=FALSE,apply.filters = FALSE,file.data="extract",quiet=TRUE)
-            }
+            dat.inp <- NMscanInput(file=file.mod,file.mod=file.mod,translate=FALSE,apply.filters = FALSE,file.data="extract",quiet=TRUE)
             saveRDS(dat.inp,file=file.path(rundir,basename(fn.input)))
         }
 
 
-        if((sge && nc > 1)||(sge && method.execute=="psn")){
+        if((sge && nc > 1)||(sge && NMsimConf$method.execute=="psn")){
             if(nc>1){
                 ## file.pnm <- file.path(rundir,"NMexec.pnm")
-                file.pnm <- fnExtension(file.mod,"pnm")
+                ## file.pnm <- fnExtension(file.mod,"pnm")
+                file.pnm <- file.path(rundir,fnExtension(basename(file.mod),"pnm"))
                 pnm <- NMgenPNM(nc=nc,file=file.pnm)
+                files.needed <- unique(c(files.needed,pnm) )
             }
         }
 
-        if(method.execute=="psn"){
-            ##if(system.tpe=="linux"){
+        if(NMsimConf$method.execute=="psn"){
+            ##if(system.type=="linux"){
             
             string.cmd <- sprintf('cd "%s"; "%s" %s',rundir,cmd.execute ,args.psn.execute)
             ##}
@@ -257,17 +280,11 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
             }
             string.cmd <- paste(string.cmd,basename(file.mod))
         }
-        if(method.execute=="direct"){
-            if(!file.exists(path.nonmem)){
-                stop(paste("The supplied path to the Nonmem executable is invalid:",path.nonmem))
-            }
-            string.cmd <- callNonmemDirect(file.mod,path.nonmem)
-        }
-        if(method.execute=="nmsim"){
-            if(!file.exists(path.nonmem)){
-                stop(paste("The supplied path to the Nonmem executable is invalid:",path.nonmem))
-            }
-            string.cmd <- NMexecDirectory(file.mod,path.nonmem,files.needed=files.needed,system.type=system.type,dir.data=dir.data)
+
+        
+        if(NMsimConf$method.execute=="nmsim"){
+            
+            string.cmd <- NMexecDirectory(file.mod,NMsimConf$path.nonmem,files.needed=files.needed,system.type=NMsimConf$system.type,dir.data=dir.data,clean=clean)
             if(sge) {
 
                 if(nc==1){
@@ -280,23 +297,27 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
 ##### for nc>1 this can be used <nc> is nc evaluated
                     ## qsub -pe orte <nc> -V -N <name for qstat> -j y -cwd -b y /opt/NONMEM/nm75/run/nmfe75 psn.mod psn.lst -background -parafile=/path/to/pnm [nodes]=<nc>
                 } else {
-                    ### executing from getwd()
+### executing from getwd()
                     ## string.cmd <- sprintf('cd %s; qsub -pe orte %s -V -N NMsim -j y -cwd -b y %s %s %s -background -parafile=%s [nodes]=%s' ,getwd(),nc,path.nonmem,file.mod,fnExtension(file.mod,"lst"),pnm,nc)
                     ## executing from model execution dir.
-                    string.cmd <- sprintf('cd \"%s\"; qsub -pe orte %s -V -N NMsim -j y -cwd -b y \"%s\" \"%s\" \"%s\" -background -parafile=%s [nodes]=%s; cd \"%s\"' ,dirname(file.mod),nc,path.nonmem,basename(file.mod),fnExtension(basename(file.mod),"lst"),basename(pnm),nc,getwd())
+                    string.cmd <- sprintf('cd \"%s\"; qsub -pe orte %s -V -N \"%s\" -j y -cwd -b y \"./%s\" -background -parafile=%s [nodes]=%s; cd \"%s\"'
+                                         ,dirname(string.cmd),nc,basename(file.mod)
+                                          ## ,NMsimConf$path.nonmem,basename(file.mod),fnExtension(basename(file.mod),"lst")
+                                         ,basename(string.cmd)
+                                         ,basename(pnm),nc,getwd())
                 }
                 wait <- TRUE
             } else {
-                if(system.type=="linux"){
+                if(NMsimConf$system.type=="linux"){
                     string.cmd <- sprintf("cd \"%s\"; \"./%s\"",dirname(string.cmd),basename(string.cmd))
                 } 
-                if(system.type=="windows"){
+                if(NMsimConf$system.type=="windows"){
                     string.cmd <- sprintf("CD \"%s\";call \"%s\"",dirname(string.cmd),basename(string.cmd))
                 }
             }
         }
         
-        if(system.type=="windows"){
+        if(NMsimConf$system.type=="windows"){
             
             ## contents.bat <- gsub(";","\n",string.cmd)
             ## cat(contents.bat,file=path.script)
@@ -308,7 +329,7 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
 
             shell(shQuote(paste("call", path.script),type="cmd") )
         }
-        if(system.type=="linux"){
+        if(NMsimConf$system.type=="linux"){
             
             if(nmquiet) string.cmd <- paste(string.cmd, ">/dev/null 2>&1")
             if(!wait) string.cmd <- paste(string.cmd,"&")
@@ -318,4 +339,5 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
     }
 
     return(invisible(NULL))
+
 }

@@ -1,9 +1,10 @@
 #### Do not export these functions. They should just be available to define arguments in `modify.model`
 
-add <- function(...,.pos="end"){
+add <- function(...,.pos="bottom"){
 
     switch(.pos,
-           end=function(x)c(x,unlist(...))
+           top=function(x)c(unlist(...),x),
+           bottom=function(x)c(x,unlist(...))
            )
     
 }
@@ -11,6 +12,6 @@ add <- function(...,.pos="end"){
 overwrite <- function(...){
 
     function(x){
-        gsub(...,x)
+        gsub(...,x=x)
     }
 }

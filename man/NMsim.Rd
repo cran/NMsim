@@ -35,7 +35,7 @@ NMsim(
   col.row,
   args.NMscanData,
   path.nonmem = NULL,
-  nmquiet = TRUE,
+  nmquiet,
   progress,
   as.fun,
   suffix.sim,
@@ -45,6 +45,7 @@ NMsim(
   file.res,
   wait,
   auto.dv = TRUE,
+  clean,
   quiet = FALSE,
   check.mod = TRUE,
   seed,
@@ -277,7 +278,9 @@ is a made up example). No default is available. You should be
 able to figure this out through how you normally execute
 Nonmem, or ask a colleague.}
 
-\item{nmquiet}{Silent messages from Nonmem. The default is `TRUE`.}
+\item{nmquiet}{Silent console messages from Nonmem? The default
+behaviour depends. It is FALSE if there is only one model to
+execute and `progress=FALSE`.}
 
 \item{progress}{Track progress? Default is `TRUE` if `quiet` is
 FALSE and more than one model is being simulated. The progress
@@ -337,6 +340,14 @@ a column of that name is not found? Nonmem is generally
 dependent on a `DV` column in input data but this is typically
 uninformative in simulation data sets and hence easily
 forgotten when generating simulation data sets.}
+
+\item{clean}{The degree of cleaning (file removal) to do after
+Nonmem execution. If `method.execute=="psn"`, this is passed
+to PSN's `execute`. If `method.execute=="nmsim"` a similar
+behavior is applied, even though not as granular. NMsim's
+internal method only distinguishes between 0 (no cleaning),
+any integer 1-4 (default, quite a bit of cleaning) and 5
+(remove temporary dir completely).}
 
 \item{quiet}{If TRUE, messages from what is going on will be
 suppressed.}

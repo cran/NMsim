@@ -1,7 +1,7 @@
 ##' Create text lines for OMEGA and SIGMA Nonmem sections
 ##'
-##' @param omegas See NMdata::NMreadExt and the pars element returned by that
-##'     function.
+##' @param omegas See NMdata::NMreadExt and the pars element returned
+##'     by that function.
 ##' @param type The matrix type. OMEGA or SIGMA - case in-sensitive.
 ##' @return Character vector
 ##'
@@ -15,7 +15,7 @@ NMcreateMatLines <- function(omegas,type){
     maxOff <- NULL
     hasOff <- NULL
     offNonZero <- NULL
-
+    
     ## the code was written in the oppositie direction, so switching i
     ## and j.
     omegas.long <- omegas[,.(i=j,j=i,value)]
@@ -45,7 +45,7 @@ NMcreateMatLines <- function(omegas,type){
         if(nis.block>0){
             ## omegas.this <- omegas.long[i>=i.this&i<=(i.this+nis.block)&j<=(i.this+nis.block)]
             ## omegas.this[,value.use:=value]
-            values.this[values.this==0] <- 1e-30
+            ## values.this[values.this==0] <- 1e-30
 
             values.this <- omegas.long[i>=i.this&i<=(i.this+nis.block)&j<=(i.this+nis.block),value]
             values.this[values.this==0] <- 1e-30
@@ -54,10 +54,10 @@ NMcreateMatLines <- function(omegas,type){
             i.idx <- i.idx+nis.block+1
         } else {
             value.this <- omegas.long[i==i.this&j==i.this,value]
-            res <- paste(value.this)
-            if(value.this==0){
-                res <- paste(res,"FIX")
-            } 
+            res <- paste(value.this, "FIX")
+            ## if(value.this==0){
+            ##     res <- paste(res,"FIX")
+            ## } 
             loopres <- c(loopres,res)
             i.idx <- i.idx+1
         }
