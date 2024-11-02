@@ -1,5 +1,5 @@
-ID,TIME,EVID,CMT,AMT,DV,MDV,sim
-1,0,1,1,300,.,1,nmtranfail
-1,1,2,2,.,.,1,nmtranfail
-1,6,2,2,.,.,1,nmtranfail
-1,12,2,2,.,.,1,nmtranfail
+ID,TIME,EVID,CMT,AMT,DV,MDV
+1,0,1,1,300,.,1
+1,1,2,2,.,.,1
+1,6,2,2,.,.,1
+1,12,2,2,.,.,1

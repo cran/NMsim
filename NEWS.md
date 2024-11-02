@@ -1,3 +1,113 @@
+# NMsim 0.1.4
+
+## New features
+
+* `sampleParsSimpar()` is a new function that automates sampling of
+  parameter values from an estimated variance-variance matrix in a
+  successful `$COVARIANCE` step using the `simpar` R package from
+  Metrum Research Group. `simpar` is currently not on CRAN, so the
+  user must install it from MPN or github to make use of
+  `sampleParsSimpar()`. The sampled parameter values can be fed
+  directly to `NMsim` using the `NMsim_VarCov` method making it very
+  easy to simulate with parameter uncertainty based on `simpar`. I
+  want to thank Sanaya Shroff for her outstanding work on this
+  functionality and for her exciting work summarizing the available
+  methods for simulation with parameter uncertainty which she will be
+  sharing at ACoP 2024. Also a big thanks to Eric Anderson for helping
+  out with adjusting the github workflows to pull `simpar` from MPN.
+
+* `expandCovs()` is a new function that puts together data sets
+  for univariately varying covariates while keeping other at reference
+  values. The function can derive both reference values and covariate
+  values to simulate at by using i.e. `median()` and `quantile()`.
+
+* `NMsim()` 
+
+  - Results are now equipped with three columns distinguishing
+    simulated models. This separation of information makes it easier to summarize simulation results within/across models and/or within/across simulation of models. 
+	- `model`: The run name derived from `file.mod`. 
+	- `name.sim`: The same as provided in the `name.sim` argument.
+	- `model.sim` The name of the generated model. In the simple case, this is `model` and `name.sim` combined. But in many cases, multiple models are being generated for each simulated control stream.
+
+  - No longer requires a `.ext` file if updating parameter values using
+  PSN's `update_inits`. It is still recommended to keep the `.ext`
+  file since it provides higher accuracy than the `.lst` file. 
+
+* `NMexec()`
+
+  - When submitting all updated models, `NMexec()` will now by default
+  try to detect if a model is already running before submitting it.
+
+  - Provides a summary of models to be submitted before starting to do
+    so.
+	
+* `NMcreateDoses()`
+
+  - `ADDL` and `II` are now also separate arguments providing a
+    simpler interface than the `addl` argument. The `addl` argument
+    provides the advantage of being able to specify the two columns
+    together in one `data.frame`, possibly including covariates.
+
+  - `add.lastonly` is a new argument. If `TRUE` (default) and `ADDL`
+    and `II` are of length 1, they are only applied to the last event
+    in a dosing regimen.
+	
+  - `col.id` argument to specify name of subject id column or to omit
+    altogether using `col.id=NA`.
+	
+  - Now checking that `TIME` is covering the length of all other
+    arguments. In contrast to other arguments, it does not make much
+    sense to try to extrapolate the `TIME` argument.
+
+* `addEVID2()` now has two arguments, `TIME` and `TAPD` which allow
+  for specification of time since first dose and time after each  dose
+  at which to insert simulation records. The two can even be
+  combined. `TIME` replaces the now deprecated `time.sim` argument,
+  and `TAPD` is new.
+
+
+## Bugfixes
+
+* A bug most likely affecting most Windows users for execution of
+Nonmem has been fixed. If on Windows, you should upgrade to NMsim
+0.1.4. Thank you to Boris Grinshpun for reporting this!
+
+* When using `method.execute="nmsim"` there was an issue with
+  parallellization. This was not a major problem in most simulation
+  applications, but it should now be fixed.
+
+* `NMsim()`
+  - When not providing a simulation data set - typically a simulation
+    for a VPC - `NMsim()` would fail with messages like
+  
+```
+Error in `:=`((col.sim), ..name.sim) : 
+  Check that is.data.table(DT) == TRUE. Otherwise, := and `:=`(...) are defined for use in j, once only and in particular ways. See help(":=").
+```
+  
+  The issue has been fixed. If using NMsim 0.1.3 or earlier, the
+  workaround is to do `NMdataConf(as.fun="data.table")`. Then after
+  having the simulation results as a data.table, convert it with
+  `as.data.frame()` or as preferred.
+  
+  Notice, `NMdataConf()` affects the succeeding `NMsim()` calls but
+  also other NMdata and NMsim function calls. When the VPC simulation
+  has run, you may not want to continue recieving data.tables, you
+  should reset the default value for as.fun: `NMdataConf(as.fun=NULL)`
+  which will turn it back to returning data.frames by default. If you
+  prefer tibbles, you can do
+  `NMdataConf(as.fun=tibble::as_tibble)`. Generally, if you prefer to
+  work with something that is not data.frames (data.table and tibble
+  the most common alternatives), it is recommended to use
+  `NMdataConf()` to customize your default.
+
+* `NMexec()`
+  - `NMexec` would fail running control streams named starting in numerals (like `1.mod`) when `sge=TRUE`. This is due to the way `sge` job names are generated by `NMexec()`. Fixed by prepending "NMsim_" in these cases.
+  
+* `NMcreateDoses`
+  - Would in some cases create too many replicates if there were
+    covariates on multiple arguments. Fixed.
+
 # NMsim 0.1.3
 
 ## New features
@@ -152,7 +262,7 @@ and advice.
 For the first time NMsim works on Windows. There may still be some
 limitations but initial testing looks very promising. Make sure to set
 `path.nonmem`. See the configuration vignette on the website:
-[`NMsim-config.html`](https://philipdelff.github.io/NMsim/articles/NMsim-config.html)
+[`NMsim-config.html`](https://nmautoverse.github.io/NMsim/articles/NMsim-config.html)
 
 0.1.0 is also an important upgrade that solidifies the way NMsim reads
 results from simulations.  In addition to important bug fixes, it

@@ -5,17 +5,64 @@ cleaningPatterns <- function(clean){
     c("nonmem","worker*","FDATA*","fort.*","WK_*")
 }
 
-NMrunLin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean){
+##' Internal function to run Nonmem on linux
+##' @param fn.mod Just the file name, not including path
+##' @keywords internal
+NMrunLin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean,sge,nc,pnm){
 
-name <- NULL
+    name <- NULL
+    fn.lst <- fnExtension( fn.mod,".lst")
     
+    if(sge){
+        ## executing from model execution dir.
+        jobname <- sub(pattern="^ *",replacement="", x=basename(fn.mod) )
+        ## qsub does not allow a jobname to start in a numeric
+        if(grepl("^[0-9]",jobname)) {
+            jobname <- paste0("NMsim_",jobname)
+        }
+        
+        line.run <- sprintf('qsub -pe orte %s -V -N \"%s\" -j y -cwd -b y \"%s\" -background -parafile=%s [nodes]=%s'
+                           ,
+                            nc
+                           ,
+                            jobname
+                           ,
+                            ## paste(path.nonmem,basename(fn.mod),fnExtension( basename(fn.mod),".lst"),"; echo DONE > NMexec_complete.txt")
+                            paste(path.nonmem,fn.mod,fn.lst)
+                              ##,basename(pnm)
+                             ,getAbsolutePath(pnm)
+                             ,nc
+                              )
+        
+        ## line.run <- sprintf("qsub -pe orte %s -V -N %s %s %s",
+        ##                     nc
+        ##                    ,jobname
+        ##                     path.nonmem,fn.mod,fnExtension(fn.mod,".lst"))
+        
+    } else {
+        line.run <- sprintf("%s %s %s",path.nonmem,fn.mod,fn.lst)
+    }
+
     lines.bash <- c(
         "#!/bin/bash"
-       ,sprintf("%s %s %s",path.nonmem,fn.mod,fnExtension(fn.mod,".lst"))
+        ,""
+       ,line.run
+       ,"stat=$?"
+       ,"if [ $stat -ne 0 ]; then"
+       ,"exit $stat;"
+       ,"fi"
+        ,sprintf("until [ -f %s ]; do",fn.lst)
+        ,"sleep 2"
+       ,"done"
+       ## ,sprintf("( tail -f -n4 %s & ) | grep -q \"Stop Time:\"",fn.lst)
+       ## ,"echo Stop found"
+         ,sprintf("while ! grep -q \"Stop Time\" %s ; do",fn.lst)
+       ,"sleep 2"
+         ,"done"
 ### copy output tables back
         ## ,sprintf("cp \'%s\' \'%s\'",paste(meta.tables[,name],collapse="' '"),dir.mod.abs)
-        ,paste0("find . -type f -name ",paste0("\'",meta.tables[,name],"\'")," -exec cp {} \'",dir.mod.abs,"\' \\;")
-### copy wanted files back to orig location of file.mod 
+       ,paste0("find . -type f -name ",paste0("\'",meta.tables[,name],"\'")," -exec cp {} \'",dir.mod.abs,"\' \\;")
+### copy wanted files back to orig location of fn.mod 
        ,paste0("find . -type f -name ",paste0("\'*.",exts.cp,"\'")," -exec cp {} \'",dir.mod.abs,"\' \\;")
        ,""
     )
@@ -41,6 +88,7 @@ name <- NULL
     
     lines.bash
 }
+
 
 ##sprintf("call %s %s %s",path.nonmem,fn.mod,fnExtension(fn.mod,".lst"))
 NMrunWin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean){
@@ -77,8 +125,8 @@ NMrunWin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean){
 
     if(clean==5){
         lines.bat <- c(lines.bat,
-                        sprintf("CD .. & rd /s /q \"%s\"",dir.mod.abs)
-                        )
+                       sprintf("CD .. & rd /s /q \"%s\"",dir.mod.abs)
+                       )
     }
     
     lines.bat

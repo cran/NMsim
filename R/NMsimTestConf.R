@@ -5,10 +5,11 @@
 ##' @param must.work Throw an error if the configuration does not seem
 ##'     to match system.
 ##' @param system.type See ?NMsim
+##' @return A list with configuration values
 ##' @export
 
 NMsimTestConf <- function(path.nonmem,dir.psn,method.execute,must.work=FALSE,system.type){
-
+    
     psn <- NULL
     direct <- NULL
     nmsim <- NULL
@@ -47,6 +48,7 @@ NMsimTestConf <- function(path.nonmem,dir.psn,method.execute,must.work=FALSE,sys
         res$dir.psn <- NULL
         res$dir.psn <- simpleCharArg("dir.psn",res$dir.psn,"",accepted=NULL,lower=FALSE)
     }
+    
     if(is.null(res$dir.psn)) res$dir.psn <- "none"
     res$exists.dir.psn <- ifelse(res$dir.psn=="none",NA,dir.exists(res$dir.psn))
 
@@ -56,6 +58,7 @@ NMsimTestConf <- function(path.nonmem,dir.psn,method.execute,must.work=FALSE,sys
     if(res$system.type=="windows"){
         res$exists.dir.psn <- any(grepl(pattern="^execute.*",list.files(res$dir.psn)))
     }
+    
     res$exists.psn.execute <- searchExecutable("execute",dir.extra=res$dir.psn)
     
     ## method.execute
