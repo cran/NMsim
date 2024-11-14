@@ -22,6 +22,11 @@
 ##'     subjects, not on observations (each subject contributes once).
 ##' @param sigdigs Used for rounding of covariate values if using
 ##'     quantiles or if using a function to find reference.
+##' @param reduce.ref If `TRUE` (default), only return one row with
+##'     all reference values. If `FALSE` there will be one such row
+##'     for each covariate. When reduced to one line, all columns
+##'     related to covariate-level information such as covariate name
+##'     will contain `NA` for the reference.
 ##' @param as.fun The default is to return data as a data.frame. Pass
 ##'     a function (say `tibble::as_tibble`) in as.fun to convert to
 ##'     something else. If data.tables are wanted, use
@@ -42,7 +47,7 @@
 ##' }
 ##' @export
 
-expandCovs <- function(...,data,col.id="ID",sigdigs=2,as.fun){
+expandCovs <- function(...,data,col.id="ID",sigdigs=2,reduce.ref=TRUE,as.fun){
 
 
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
@@ -50,8 +55,8 @@ expandCovs <- function(...,data,col.id="ID",sigdigs=2,as.fun){
     . <- NULL
     covvar <- NULL
     covref <- NULL
-    . <- NULL
     covval <- NULL
+    type <- NULL
 
 ###  Section end: Dummy variables, only not to get NOTE's in pacakge checks
 
@@ -73,7 +78,7 @@ expandCovs <- function(...,data,col.id="ID",sigdigs=2,as.fun){
     ## should add quantiles too
     covLists <- lapply(covlists,completeCov,data=data,col.id=col.id,sigdigs=sigdigs)
     allcovs <- rbindlist(covLists)
-
+    names.covs <- unique(allcovs[,covvar])
 
     ## add in covvar ref values. Merge on wide dt.ref, then adjust each row.
     dt.ref.w <- dcast(unique(allcovs[,.(covvar,covref)]) , .~covvar,value.var="covref")
@@ -87,7 +92,15 @@ expandCovs <- function(...,data,col.id="ID",sigdigs=2,as.fun){
         allcovs[I,(this.cov):=covval]
     }
 
-        as.fun(    allcovs)
+#### reduce to only one ref row
+    if(reduce.ref){
+        ref <- unique(allcovs[type=="ref",c("type",names.covs),with=FALSE])
+        corder <- colnames(allcovs)
+        allcovs <- rbind(ref,allcovs[type!="ref"],fill=TRUE)
+        setcolorder(allcovs,corder)
+    }
+    
+    as.fun(allcovs)
 
 }
 
