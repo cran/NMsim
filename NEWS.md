@@ -1,3 +1,57 @@
+# NMsim 0.1.6
+
+* A major improvement is implemented on `NMSim_NWPRI()`, the
+  simulation method that leverages the Nonmem `NWPRI` subroutine to
+  simulate models with parameter uncertainty. This method was first
+  included in NMsim 0.1.3 but - as was clearly declared in that
+  version - it could only be trusted for simulation of `THETA`s. After
+  further development in both `NMsim` and `NMdata` to support this as
+  well as bugfixes in the new Nonmem 7.6.0, NMsim provides full
+  support for simulation with parameter uncertainty using the inverse
+  Wishart distribution through this simple interface.
+  
+* A new arguments `inits` is introduced to manually specify parameter
+  (initial) values. This is the values that go into `$THETA`, `$OMEGA`
+  and `SIGMA` sections of the control stream. To simulate with the
+  final estimated values (stored in a `.ext` file), simply add
+  `inits=list("theta(1)"=list(init=1.2))`.  For simulation, only the
+  parameter values (init) may be of interest, but if you are using
+  NMsim for estimation too, bounds and whether parameters are fixed
+  can now also controlled. `BLOCK` structures in `$OMEGA` and `SIGMA`
+  can currently not be changed (say, correlation of two random effects
+  cannot be introduced or removed).
+
+* The `$SIZES` can now easily be controlled using the simple `sizes`
+  argument in `NMsim()`. It leverages a new function `NMupdateSizes()`
+  which can be used to edit `$SIZES` independently of the `NMsim()`
+  function. In `NMsim()` just add the argument like
+  `sizes=list(PD=100)` which will update or add `$SIZES PD=100` as
+  needed. See documentation for more details.
+
+* Nonmem execution
+
+ - Improved monitoring of Nonmem jobs. In NMsim 0.1.5, `NMsim()` would
+   not always catch and properly handled failed runs. On Linux, this
+   is much better handled now. On Windows, failures still may not be
+   caught properly - more work to be don on Windows to align with the
+   approach on Linux.
+ 
+ - A new `post.fun` argument has been introduced in `NMexec()` to run
+   additional code once Nonmem has finished. This can be used to
+   automatically initiate creation of goodness of fit plots,
+   simulations or any full workflows run using `Rscript` after
+   estimation of models.
+
+## Bugfixes
+
+* `overwrite()` is a helper function intended to use in `NMsim()`'s
+  `modify.model` argument. It would not work correctly for strings
+  containing some special, at least. Fixed.
+  
+* `NMsim_NWPRI` would not always paste the full variance-covariance
+  matrix for theta estimates into `$THETAPV` which would make NONMEM
+  fail. Fixed.
+
 # NMsim 0.1.5
 
 ## New features
@@ -16,7 +70,9 @@
   each covariate. The forest plot can be evaluated with just one
   reference simulation.
 
-* New function `summarizeCovs()` introduced to summarize simulation results for forest plots. This function is closely related to `expandCovs()`
+* New function `summarizeCovs()` introduced to summarize simulation
+  results for forest plots. This function is closely related to
+  `expandCovs()`
 
 * `NMsim()` no longer requires NONMEM to be available if
   `reuse.results=TRUE` and NONMEM does not need to be run.

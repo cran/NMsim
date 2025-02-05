@@ -8,7 +8,7 @@ cleaningPatterns <- function(clean){
 ##' Internal function to run Nonmem on linux
 ##' @param fn.mod Just the file name, not including path
 ##' @keywords internal
-NMrunLin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean,sge,nc,pnm){
+NMrunLin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean,sge,nc,pnm,fun.post=NULL){
 
     rm.if.pres <- function(regex){
         sprintf("find . -type f -name \"%s\" -exec rm {} \\;",regex)     
@@ -17,57 +17,48 @@ NMrunLin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean,sg
 
     name <- NULL
     fn.lst <- fnExtension( fn.mod,".lst")
-    line.run <- sprintf("%s %s %s",path.nonmem,fn.mod,fn.lst)    
+    line.run <- sprintf("%s %s %s",path.nonmem,fn.mod,fn.lst)
+
     if(sge){
         ## executing from model execution dir.
-        jobname <- sub(pattern="^ *",replacement="", x=basename(fn.mod) )
+        jobname <- 
+            sub(pattern="^ *",replacement="", x=basename(fn.mod) )
         ## qsub does not allow a jobname to start in a numeric
         if(grepl("^[0-9]",jobname)) {
-            jobname <- paste0("NMsim_",jobname)
+            jobname <- paste0("NM",jobname)
         }
-        line.run <- sprintf('qsub -pe orte %s -V -N \"%s\" -j y -cwd -b y \"%s\" -background'
-                           ,
-                            nc
-                           ,
-                            jobname
-                           ,
-                            line.run
-                            ## paste(path.nonmem,basename(fn.mod),fnExtension( basename(fn.mod),".lst"),"; echo DONE > NMexec_complete.txt")
-                            ##paste(path.nonmem,fn.mod,fn.lst)
-                            ## ,basename(pnm)
-                            ## ,getAbsolutePath(pnm)
-                            ## ,nc
+        line.run <- sprintf('qsub -terse -pe orte %s -V  -e \"%s\" -o \"%s\" -N \"%s\" -j y -cwd -b y \"%s\" -background'
+                           ,nc
+                           ,"NMexec.err"
+                           ,"NMexec.out"
+                           ,jobname
+                           ,line.run
                             )
 
         if(nc>1){
             line.run <- sprintf('%s -parafile=\"%s\" [nodes]=%s',line.run,getAbsolutePath(pnm),nc)
         }
-        
-        ## line.run <- sprintf("qsub -pe orte %s -V -N %s %s %s",
-        ##                     nc
-        ##                    ,jobname
-        ##                     path.nonmem,fn.mod,fnExtension(fn.mod,".lst"))
-        
+        ##line.run <- paste(line.run,"| read jobid_qsub")
+        line.run <- paste0("jobid_qsub=$(",line.run,"  2>&1)")
     }
+
+
+    lines.wait <- c()
+    if(sge) {
+        path.wait.qsub <- system.file("bash/wait_qsub.sh",package="NMsim")
+        lines.wait <- paste(path.wait.qsub, "\"$jobid_qsub\"")
+    }
+    
     lines.bash <- c(
         "#!/bin/bash"
        ,""
        ,line.run
-       ## ,"stat=$?"
-       ## ,"if [ $stat -ne 0 ]; then"
-       ## ,"exit $stat;"
-       ## ,"fi"
-       ,sprintf("until [ -f %s ]; do",fn.lst)
-       ,"sleep 2"
-       ,"done"
-        ## ,sprintf("( tail -f -n4 %s & ) | grep -q \"Stop Time:\"",fn.lst)
-        ## ,"echo Stop found"
-       ,sprintf("while ! grep -q \"Stop Time\" %s ; do",fn.lst)
-       ,"sleep 2"
-       ,"done"
+       ,lines.wait
 ### copy output tables back
-        ## ,sprintf("cp \'%s\' \'%s\'",paste(meta.tables[,name],collapse="' '"),dir.mod.abs)
+### this would be simpler. Needs testing.
+        ## ,sprintf("find . -type f -name \'%s\' -exec cp {} \'%s\' \\;",meta.tables[,name],dir.mod.abs)
        ,paste0("find . -type f -name ",paste0("\'",meta.tables[,name],"\'")," -exec cp {} \'",dir.mod.abs,"\' \\;")
+
 ### copy wanted files back to orig location of fn.mod 
        ,paste0("find . -type f -name ",paste0("\'*.",exts.cp,"\'")," -exec cp {} \'",dir.mod.abs,"\' \\;")
        ,""
@@ -82,17 +73,29 @@ NMrunLin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean,sg
                         )
         
     }
+    lines.bash <- c(lines.bash
+                   ,"oldwd=$PWD"
+                   ,"cd .."
+                    )
     if(clean==5){
-        lines.bash <- c(lines.bash,
-                        sprintf("cd ..; rm -r \"%s\"",dir.mod.abs)
+        lines.bash <- c(lines.bash
+                       ,"rm -r \"$oldwd\""
+                       ,""
                         )
     }
+
+    if(!is.null(fun.post)){
+        lines.bash <- c(lines.bash,
+                        fun.post(file.path(dir.mod.abs,basename(fn.mod)))
+                        )
+    }
+    
     lines.bash
 }
 
 
 ##sprintf("call %s %s %s",path.nonmem,fn.mod,fnExtension(fn.mod,".lst"))
-NMrunWin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean){
+NMrunWin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean,fun.post=NULL){
 
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
 
@@ -124,10 +127,22 @@ NMrunWin <- function(fn.mod,dir.mod.abs,exts.cp,meta.tables,path.nonmem,clean){
                        )
     }
 
+        lines.bat <- c(lines.bat
+                       ,"set \"oldwd=%cd%\""
+                       ,"CD ..")
+    
     if(clean==5){
-        lines.bat <- c(lines.bat,
-                       sprintf("CD .. & rd /s /q \"%s\"",dir.mod.abs)
+
+        lines.bat <- c(lines.bat
+                       ##sprintf("CD .. & rd /s /q \"%s\"",dir.tmp)
+                       ,"rd /s /q \"%oldwd%\""
                        )
+    }
+
+    if(!is.null(fun.post)){
+        lines.bash <- c(lines.bat,
+                        fun.post(file.path(dir.mod.abs,basename(fn.mod)))
+                        )
     }
     
     lines.bat

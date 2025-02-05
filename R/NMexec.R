@@ -13,11 +13,16 @@
 ##'     specific data file.
 ##' @param dir If file.pattern is used, dir is the directory to search
 ##'     for control streams in.
+##' @param path.nonmem The path to the nonmem executable. Only used if
+##'     \code{method.execute="direct"} or
+##'     \code{method.execute="nmsim"} (which is not default). If this
+##'     argument is not supplied, NMexec will try to run nmfe75,
+##'     i.e. this has to be available in the path of the underlying
+##'     shell. The default value can be modified using
+##'     \code{NMdata::NMdataConf}, like
+##'     \code{NMdataConf(path.nonmem="/path/to/nonmem")}
 ##' @param sge Use the sge queing system. Default is TRUE. Disable for
 ##'     quick models not to wait for the queue to run the job.
-##' @param input.archive A function of the model file path to generate
-##'     the path in which to archive the input data as RDS. Set to
-##'     NULL not to archive the data.
 ##' @param nc Number of cores to use if sending to the cluster. This
 ##'     will only be used if \code{method.execute="psn"}, and
 ##'     \code{sge=TRUE}. Default is 64.
@@ -29,6 +34,9 @@
 ##'     available again? This is useful if calling NMexec from a
 ##'     function that needs to wait for the output of the Nonmem run
 ##'     to be available for further processing.
+##' @param input.archive A function of the model file path to generate
+##'     the path in which to archive the input data as RDS. Set to
+##'     NULL not to archive the data.
 ##' @param args.psn.execute A character string with arguments passed
 ##'     to execute. Default is
 ##'     "-model_dir_name -nm_output=coi,cor,cov,ext,phi,shk,xml".
@@ -62,26 +70,6 @@
 ##' }
 ##'
 ##' See `sge` as well.
-##' @param dir.psn The directory in which to find PSN
-##'     executables. This is only needed if these are not searchable
-##'     in the system path, or if the user should want to be explicit
-##'     about where to find them (i.e. want to use a specific
-##'     installed version of PSN).
-##' @param path.nonmem The path to the nonmem executable. Only used if
-##'     \code{method.execute="direct"} or
-##'     \code{method.execute="nmsim"} (which is not default). If this
-##'     argument is not supplied, NMexec will try to run nmfe75,
-##'     i.e. this has to be available in the path of the underlying
-##'     shell. The default value can be modified using
-##'     \code{NMdata::NMdataConf}, like
-##'     \code{NMdataConf(path.nonmem="/path/to/nonmem")}
-##' @param files.needed In case method.execute="nmsim", this argument
-##'     specifies files to be copied into the temporary directory
-##'     before Nonmem is run. Input control stream and simulation
-##'     input data does not need to be specified.
-##' @param system.type A charachter string, either \"windows\" or
-##'     \"linux\" - case insensitive. Windows is only experimentally
-##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
 ##' @param clean The degree of cleaning (file removal) to do after
 ##'     Nonmem execution. If `method.execute=="psn"`, this is passed
 ##'     to PSN's `execute`. If `method.execute=="nmsim"` a similar
@@ -89,9 +77,26 @@
 ##'     internal method only distinguishes between 0 (no cleaning),
 ##'     any integer 1-4 (default, quite a bit of cleaning) and 5
 ##'     (remove temporary dir completely).
+##' @param fun.post A function of the path to the control stream
+##'     (`file.mod`) that generates bash code to be evaluated once
+##'     Nonmem is done. This can be used to automatically run a
+##'     goodness-of-fit script or a simulation script after model
+##'     estimation.
+##' @param dir.psn The directory in which to find PSN
+##'     executables. This is only needed if these are not searchable
+##'     in the system path, or if the user should want to be explicit
+##'     about where to find them (i.e. want to use a specific
+##'     installed version of PSN).
+##' @param files.needed In case method.execute="nmsim", this argument
+##'     specifies files to be copied into the temporary directory
+##'     before Nonmem is run. Input control stream and simulation
+##'     input data does not need to be specified.
+##' @param system.type A charachter string, either \"windows\" or
+##'     \"linux\" - case insensitive. Windows is only experimentally
+##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
 ##' @param backup Before running, should existing results files be
 ##'     backed up in a sub directory? If not, the files will be
-##'     deleted before running. 
+##'     deleted before running.
 ##' @param quiet Suppress messages on what NMexec is doing? Default is
 ##'     FALSE.
 ##' @details Use this to read the archived input data when retrieving
@@ -127,10 +132,13 @@
 
 
 NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
-                   nc=64,dir.data=NULL,wait=FALSE, args.psn.execute,
-                   update.only=FALSE,nmquiet=FALSE,
-                   method.execute,dir.psn,path.nonmem,system.type,
-                   files.needed,clean=1,backup=TRUE,quiet=FALSE){
+                   nc,dir.data=NULL,wait=FALSE, path.nonmem,
+                   update.only=FALSE,
+                   fun.post,
+                   method.execute,dir.psn,args.psn.execute,
+                   files.needed,clean=1,backup=TRUE,quiet=FALSE
+                  ,nmquiet=FALSE
+                  ,system.type){
     
     
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
@@ -170,7 +178,7 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
     if(is.null(nc)) nc <- 64
     
 
-
+    if(missing(fun.post)) fun.post <- NULL
 
 
     
@@ -227,7 +235,7 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
         ## replace extension of fn.input based on path.input - prefer rds
         rundir <- dirname(file.mod)
 
-        exts <- c("\\.cov","\\.cor","\\.coi","\\.ext","\\.lst",".*msf","\\.msfi","\\.msfo","\\.phi","_input\\.rds","\\.shk","\\.xml")
+        exts <- c("\\.cov","\\.cor","\\.coi","\\.ext","\\.lst",".*msf","\\.msfi","\\.msfo","\\.phi","_input\\.rds","\\.res","\\.shk","\\.xml")
         exts.string <- paste0("(",paste(exts,collapse="|"),")")
 
 ### backup previous results if any:
@@ -297,50 +305,15 @@ NMexec <- function(files,file.pattern,dir,sge=TRUE,input.archive,
         
         if(NMsimConf$method.execute=="nmsim"){
             
-            string.cmd <- NMexecDirectory(file.mod,NMsimConf$path.nonmem,files.needed=files.needed,system.type=NMsimConf$system.type,dir.data=dir.data,clean=clean,sge,nc,pnm=pnm)
+            string.cmd <- NMexecDirectory(file.mod,NMsimConf$path.nonmem,files.needed=files.needed,system.type=NMsimConf$system.type,dir.data=dir.data,clean=clean,sge,nc,pnm=pnm,fun.post=fun.post)
             dir.tmp <- dirname(string.cmd)
 
-            if(F){
-                ##         if(sge) {
-
-                if(nc==1){
-                    ## string.cmd <- sprintf("cd %s; qsub -terse -wd \'%s\' %s",getwd(),dirname(string.cmd),string.cmd)
-                    ## I am not sure if absolute path is needed here.
-                    string.cmd <- sprintf('cd "%s"; qsub -terse -wd \'%s\' %s',
-                                          getwd(),getAbsolutePath(dirname(string.cmd)),string.cmd)
-                    ## string.cmd <- paste0("CURWD=",getwd()," ",string.cmd)
-
-##### for nc>1 this can be used <nc> is nc evaluated
-                    ## qsub -pe orte <nc> -V -N <name for qstat> -j y -cwd -b y /opt/NONMEM/nm75/run/nmfe75 psn.mod psn.lst -background -parafile=/path/to/pnm [nodes]=<nc>
-                } else {
-### executing from getwd()
-                    ## string.cmd <- sprintf('cd %s; qsub -pe orte %s -V -N NMsim -j y -cwd -b y %s %s %s -background -parafile=%s [nodes]=%s' ,getwd(),nc,path.nonmem,file.mod,fnExtension(file.mod,"lst"),pnm,nc)
-                    ## executing from model execution dir.
-                    jobname <- basename(file.mod)
-                    ## qsub does not allow a jobname to start in a numeric
-                    if(grepl("^ *[0-9]",jobname)) {
-                        jobname <- paste0("NMsim_",jobname)
-                    }
-                    string.cmd <- sprintf('cd \"%s\"; qsub -pe orte %s -V -N \"%s\" -j y -cwd -b y \"./%s\" -background -parafile=%s [nodes]=%s; cd \"%s\"'
-                                         ,dirname(string.cmd)
-                                         ,nc
-                                         ,jobname
-                                         ,basename(string.cmd)
-                                          ##,basename(pnm)
-                                         ,getAbsolutePath(pnm)
-                                         ,nc
-                                         ,getwd())
-                }
-                wait <- TRUE
-            }
-            ## } else { 
             if(NMsimConf$system.type=="linux"){
                 string.cmd <- sprintf("cd \"%s\"; \"./%s\"",dirname(string.cmd),basename(string.cmd))
             }
             if(NMsimConf$system.type=="windows"){
                 string.cmd <- sprintf("CD \"%s\";call \"%s\"",dirname(string.cmd),basename(string.cmd))
             }
-            ## }
         }
         
         if(NMsimConf$system.type=="windows"){
