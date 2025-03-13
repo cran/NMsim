@@ -52,9 +52,16 @@
 ##'     space-separated options. Only used if \code{table.vars} is
 ##'     provided. If constructing a new output table with
 ##'     \code{table.vars} the default is to add two options,
-##'     \code{NOAPPEND} and \code{NOPRINT}. You can modeify that with
+##'     \code{NOAPPEND} and \code{NOPRINT}. You can modify that with
 ##'     \code{table.options}. Do not try to modify output filename -
 ##'     \code{NMsim} takes care of that.
+##' @param table.format A format for `$TABLE`. Only used if
+##'     `table.vars` is provided.
+##' @param carry.out Variables from input data that should be included
+##'     in results. Default is to include everything. If working with
+##'     large data sets, it may be wanted to provide a subset of the
+##'     columns here. If doing very large simulations, this may also
+##'     be a way to save memory.
 ##' @param reuse.results If simulation results found on file, should
 ##'     they be used? If TRUE and reading the results fail, the
 ##'     simulations will still be rerun.
@@ -62,12 +69,12 @@
 ##'     after the Nonmem simulations and before plotting. For each
 ##'     list element, its name refers to the name of the column to
 ##'     transform, the contents must be the function to apply.
-##' @param seed.R A value passed to \code{set.seed()}. It may be
-##'     better use \code{seed.R} rather than calling \code{set.seed()}
-##'     manually because the seed can then be captured and stored by
-##'     \code{NMsim()} for reproducibility. See \code{seed.nm} for
-##'     finer control of the seeds that are used in the Nonmem control
-##'     streams.
+##' @param seed.R A value passed to \code{set.seed()}. It is
+##'     recommended to use \code{seed.R} rather than calling
+##'     \code{set.seed()} manually because the seed can then be
+##'     captured and stored by \code{NMsim()} for reproducibility. See
+##'     \code{seed.nm} for finer control of the seeds that are used in
+##'     the Nonmem control streams.
 ##' @param seed.nm Control Nonmem seeds. If a numeric, a vector or a
 ##'     `data.frame`, these are used as the the seed values (a single
 ##'     value or vector will be recycled so make sure the dimesnsions
@@ -97,9 +104,8 @@
 ##' @param text.sim A character string to be pasted into
 ##'     $SIMULATION. This must not contain seed or SUBPROBLEM which
 ##'     are handled separately. Default is to include "ONLYSIM". You
-##'     cannot avoid that using `text.sim`. If you need to drop
-##'     `ONLYSIM`, use
-##'     `modify.model=list(simulation=list(overwrite("ONLYSIM","")))`.
+##'     cannot avoid that using `text.sim`. Instead, you can use
+##'     `onlysim=FALSE` which will be passed to `NMsim_default()`.
 ##' @param method.sim A function (not quoted) that creates the
 ##'     simulation control stream and other necessary files for a
 ##'     simulation based on the estimation control stream, the data,
@@ -110,7 +116,71 @@
 ##'     methods.
 ##' @param typical Run with all ETAs fixed to zero? Technically all
 ##'     ETAs=0 is obtained by replacing \code{$OMEGA} by a zero
-##'     matrix. Default is FALSE.
+##'     matrix. Default is `FALSE`.
+##' @param inits Control the parameter values. `inits` is a list. The
+##'     `method` element controls which method is used to do this, and
+##'     this corresponds to the old `method.update.inits` argument. If
+##'     using the new `method=nmsim` you can specify parameter
+##'     values, fix/unfix them, and edit lower and upper limits for
+##'     estimation.
+##' \itemize{
+##'
+##' \item{`method="nmsim"`}, all other
+##'     arguments are passed to `NMwriteInits`. This is a flexible
+##'     method that allows for modification of the parameter values
+##'     and is expected to be the default method in the
+##'     future. Example which will update the parameter values based
+##'     on the available estimate, but with `THETA(2)=1.3`:
+##'     `inits=list(method="nmsim","THETA(2)"=list(init=1.3))`. See
+##'     `?NMwriteInits` too.
+##' 
+##' \item{`method="psn"`}
+##'     uses PSN's "update_inits". Requires a functioning PSN
+##'     installation and possibly that \code{dir.psn} is correctly
+##'     set. The advantages of this method are that it keeps comments
+##'     in the control stream and that it is a method known to many.
+##'
+##' \item{`method="nmsim"`}
+##'  Uses a simple internal method to update the parameter values
+##' based on the ext file.  The advantages of "nmsim" are it does not
+##' require PSN, and that it does not rely on code-interpretation for generation of simulation control streams. "nmsim" fixes the whole
+##' OMEGA and SIGMA matrices as single blocks making the $OMEGA and
+##' $SIGMA sections of the control streams less easy to read. On the
+##' other hand, this method is robust because it avoids any
+##' interpretation of BLOCK structure or other code in the control
+##' streams.
+##'
+##' \item{`method="none"`} Do nothing. This is useful if the model to simulate
+##' has not been estimated but parameter values have been manually put
+##' into the respective sections in the control stream.
+##' }
+##' 
+##' See also `file.ext` which can now be handled by `inits` too. This
+##' change collects the update of the "initial"
+##' parameter values into one interface rather than multiple
+##' arguments.
+##' @param modify Named list of additional control stream
+##'     section edits. Note, these can be functions that define how to
+##'     edit sections. This is an advanced feature which is not needed
+##'     to run most simulations. It is however powerful for some types
+##'     of analyses, like modifying parameter values. See vignettes
+##'     for further information.
+##' @param filters Edit data filters (`IGNORE`/`ACCEPT` statements)
+##'     before running model. This should normally only be used if no
+##'     data set is provided. It can be useful if simulating for a VPC
+##'     but a different subset of data needs to be simulated than the
+##'     one used for estimation. A common example on this is inclusion
+##'     of BLQ's in the VPC even if they were excluded in the
+##'     estimation. See `?NMreadFilters` which returns a table you can
+##'     edit and pass to `filters`. You can also just pass a string
+##'     representing the full set of filters to be used. If you pass a
+##'     string, consider including "IGN=@" to avoid character rows,
+##'     like the column headers.
+##' @param sizes If needed, adjust the `$SIZES` section by providing a
+##'     list of arguments to `NMupdateSizes()`. Example:
+##'     `sizes=list(PD=80)`. See `?NMupdateSizes` for details. Don't
+##'     use arguments like `file.mod` and `newfile` which are handled
+##'     internally.
 ##' @param execute Execute the simulation or only prepare it?
 ##'     `execute=FALSE` can be useful if you want to do additional
 ##'     tweaks or simulate using other parameter estimates.
@@ -137,59 +207,7 @@
 ##'     in the system search path. So as long as you know where your
 ##'     Nonmem executable is, "nmsim" is recommended. The default is
 ##'     "nmsim" if path.nonmem is specified, and "psn" if not.
-##' @param inits Control the parameter values. `inits` is a list. The
-##'     `method` element controls which method is used to do this, and
-##'     this corresponds to the old `method.update.inits` argument. If
-##'     using the new `method=nmsim2` you can specify parameter
-##'     values, fix/unfix them, and edit lower and upper limits for
-##'     estimation. If inits contains `method=nmsim2`, all other
-##'     arguments are passed to `NMwriteInits`. This is a flexible
-##'     method that allows for modification of the parameter values
-##'     and is expected to be the default method in the
-##'     future. Example which will update the parameter values based
-##'     on the available estimate, but with `THETA(2)=1.3`:
-##'     `inits=list(method="nmsim2","THETA(2)"=list(init=1.3))`. See
-##'     `?NMwriteInits` too.
-##'
-##' See `method.update.inits` methods for other methods available. See
-##' also `file.ext` which can now be handled by `inits` too. This
-##' change is done because it collects the update of the "initial"
-##' parameter values into one interface rather than multiple
-##' arguments.
 ##' 
-##' @param method.update.inits This argument is being deprecated, please migrate to `inits` instead. The initial values of all parameters
-##'     are by updated from the estimated model before running the
-##'     simulation. NMsim can do this with a native function or use
-##'     PSN to do it - or the step can be skipped to not update the
-##'     values. The possible values are
-##'
-##' \itemize{
-##'
-##' \item{"psn"}
-##'     uses PSN's "update_inits". Requires a functioning PSN
-##'     installation and possibly that \code{dir.psn} is correctly
-##'     set. The advantages of this method are that it keeps comments
-##'     in the control stream and that it is a method known to many.
-##'
-##' \item{"nmsim"}
-##'  Uses a simple internal method to update the parameter values
-##' based on the ext file.  The advantages of "nmsim" are it does not
-##' require PSN, and that it does not rely on code-interpretation for generation of simulation control streams. "nmsim" fixes the whole
-##' OMEGA and SIGMA matrices as single blocks making the $OMEGA and
-##' $SIGMA sections of the control streams less easy to read. On the
-##' other hand, this method is robust because it avoids any
-##' interpretation of BLOCK structure or other code in the control
-##' streams.
-##'
-##' \item{"none"} Do nothing. This is useful if the model to simulate
-##' has not been estimated but parameter values have been manually put
-##' into the respective sections in the control stream.
-##'
-##' On linux/mac, The default is to use "PSN" if found. On Windows,
-##' "nmsim" is the default.
-##' 
-##' }
-##'
 ##' @param path.nonmem The path to the Nonmem executable to use. The
 ##'     could be something like "/usr/local/NONMEM/run/nmfe75" (which
 ##'     is a made up example). No default is available. You should be
@@ -201,17 +219,16 @@
 ##'     'update_inits' by just typing that in a terminal, you don't
 ##'     need to specify this unless you want to explicitly use a
 ##'     specific installation of PSN on your system.
-##' @param modify.model Named list of additional control stream
-##'     section edits. Note, these can be functions that define how to
-##'     edit sections. This is an advanced feature which is not needed
-##'     to run most simulations. It is however powerful for some types
-##'     of analyses, like modifying parameter values. See vignettes
-##'     for further information.
-##' @param sizes If needed, adjust the `$SIZES` section by providing a
-##'     list of arguments to `NMupdateSizes()`. Example:
-##'     `sizes=list(PD=80)`. See `?NMupdateSizes` for details. Don't
-##'     use arguments like `file.mod` and `newfile` which are handled
-##'     internally.
+##' @param nmrep Include `NMREP` as counter of subproblems? The
+##'     default is to do so if `subproblems>0`. This will insert a
+##'     counter called `NMREP` in the `$ERROR` section and include
+##'     that in the output table(s). At this point, nothing is done to
+##'     avoid overwriting existing variables.
+##' @param col.flagn Only used if `data` is provided. Use this if you
+##'     are including an exclusion flag column in data. However, what
+##'     NMsim will then do is to require that column to equal `0`
+##'     (zero) for the rows to be simulated. It is often better to
+##'     subset the data before simulation. See `filters` too.
 ##' @param create.dirs If the directories specified in dir.sims and
 ##'     dir.res do not exists, should it be created? Default is TRUE.
 ##' @param sim.dir.from.scratch If TRUE (default) this will wipe the
@@ -228,13 +245,6 @@
 ##'     1000 replications, fixed something and now rand 500. If you
 ##'     choose FALSE here, you can end up with the results of 500 new
 ##'     and 500 old simulations.
-##' @param file.ext Depecated. Use
-##'     `inits=list(file.ext="path/to/file.ext") instead`. Optionally
-##'     provide a parameter estimate file from Nonmem. This is
-##'     normally not needed since `NMsim` will by default use the ext
-##'     file stored next to the input control stream (replacing the
-##'     file name extension with `.ext`). If using
-##'     method.update.inits="psn", this argument cannot be used. 
 ##' @param auto.dv Add a column called `DV` to input data sets if a
 ##'     column of that name is not found? Nonmem is generally
 ##'     dependent on a `DV` column in input data but this is typically
@@ -275,12 +285,6 @@
 ##'     it is only recommended to disable this if you are fully aware
 ##'     of such a feature of your control stream, you know how it
 ##'     impacts simulation, and you want to get rid of warnings.
-##' @param col.row Only used if data is not supplied (which is most
-##'     likely for simulations for VPCs) A column name to use for a
-##'     row identifier. If none is supplied,
-##'     \code{NMdataConf()[['col.row']]} will be used. If the column
-##'     already exists in the data set, it will be used as is, if not
-##'     it will be added.
 ##' @param as.fun The default is to return data as a data.frame. Pass
 ##'     a function (say `tibble::as_tibble`) in as.fun to convert to
 ##'     something else. If data.tables are wanted, use
@@ -305,11 +309,92 @@
 ##'     input data to output data. `csv` will also lead to loss of
 ##'     additional information such as factor levels.
 ##' @param ... Additional arguments passed to \code{method.sim}.
-##' @param list.sections Deprecated. Use modify.model instead.
+##' @param modify.model Deprecated. Use modify instead.
+##' @param list.sections Deprecated. Use modify instead.
+##' 
+##' @param auto.dv Add a column called `DV` to input data sets if a
+##'     column of that name is not found? Nonmem is generally
+##'     dependent on a `DV` column in input data but this is typically
+##'     uninformative in simulation data sets and hence easily
+##'     forgotten when generating simulation data sets. If
+##'     \code{auto.dv=TRUE} and no `DV` column is found, `DV=NA` will
+##'     be added. In this case (`auto.dv=TRUE` and no `DV` column
+##'     found) a `MDV=1` column will also be added if none found.
+##' @param file.res Path to an rds file that will contain a table of
+##'     the simulated models and other metadata. This is needed for
+##'     subsequently retrieving all the results using
+##'     `NMreadSim()`. The default is to create a file called
+##'     `NMsim_..._MetaData.rds` under the \code{dir.res} directory
+##'     where ... is based on the model name. However, if multiple
+##'     models (\code{file.mod}) are simulated, this will result in
+##'     multiple rds files. Specifying a path ensures that one rds
+##'     file containing information about all simulated models will be
+##'     created. Notice if \code{file.res} is supplied, \code{dir.res}
+##'     is not used.
+##' @param clean The degree of cleaning (file removal) to do after
+##'     Nonmem execution. If `method.execute=="psn"`, this is passed
+##'     to PSN's `execute`. If `method.execute=="nmsim"` a similar
+##'     behavior is applied, even though not as granular. NMsim's
+##'     internal method only distinguishes between 0 (no cleaning),
+##'     any integer 1-4 (default, quite a bit of cleaning) and 5
+##'     (remove temporary dir completely).
+##' @param quiet If TRUE, messages from what is going on will be
+##'     suppressed.
+##' @param nmquiet Silent console messages from Nonmem? The default
+##'     behaviour depends. It is FALSE if there is only one model to
+##'     execute and `progress=FALSE`.
+##' @param progress Track progress? Default is `TRUE` if `quiet` is
+##'     FALSE and more than one model is being simulated. The progress
+##'     tracking is based on the number of models completed, not the
+##'     status of the individual models.
+##' @param check.mod Check the provided control streams for contents
+##'     that may cause issues for simulation. Default is `TRUE`, and
+##'     it is only recommended to disable this if you are fully aware
+##'     of such a feature of your control stream, you know how it
+##'     impacts simulation, and you want to get rid of warnings.
+##' @param as.fun The default is to return data as a data.frame. Pass
+##'     a function (say `tibble::as_tibble`) in as.fun to convert to
+##'     something else. If data.tables are wanted, use
+##'     as.fun="data.table". The default can be configured using
+##'     NMdataConf.
+##' @param args.NMscanData If \code{table.options} is used, NMsim
+##'     turns to `NMdata::NMscanData()` for a general method to read
+##'     the output tables. Use `args.NMscanData` to pass additional
+##'     arguments (in a list) to that function if you want the results
+##'     to be read in a specific way. This can be if the model for
+##'     some reason drops rows, and you need to merge by a row
+##'     identifier. You would do `args.NMscanData=list(col.row="ROW")`
+##'     to merge by a column called `ROW`. This is only used in rare
+##'     cases. Better just stick to NMsim's optimized default
+##'     `table.options` and related methods for reading results.
+##' @param system.type A charachter string, either \"windows\" or
+##'     \"linux\" - case insensitive. Windows is only experimentally
+##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
+##' @param format.data.complete For development purposes - users do
+##'     not need this argument. Controls what format the complete
+##'     input data set is saved in.  Possible values are `rds`
+##'     (default), `fst` (experimental) and `csv`. `fst` may be faster
+##'     and use less disk space but factor levels may be lost from
+##'     input data to output data. `csv` will also lead to loss of
+##'     additional information such as factor levels.
+##' @param ... Additional arguments passed to \code{method.sim}.
+##' @param modify.model Deprecated. Use modify instead.
+##' @param list.sections Deprecated. Use modify instead.
+##' @param method.update.inits Deprecated, please migrate to `inits`
+##'     instead. The initial values of all parameters are by updated
+##'     from the estimated model before running the simulation. NMsim
+##'     can do this with a native function or use PSN to do it - or
+##'     the step can be skipped to not update the values.
+##' @param file.ext Depecated. Use
+##'     `inits=list(file.ext="path/to/file.ext")` instead. Optionally
+##'     provide a parameter estimate file from Nonmem. This is
+##'     normally not needed since `NMsim` will by default use the ext
+##'     file stored next to the input control stream (replacing the
+##'     file name extension with `.ext`). If using
+##'     method.update.inits="psn", this argument cannot be used.
 ##' @param suffix.sim Deprecated. Use name.sim instead.
-##' @param text.table A character string including the variables to
-##'     export from Nonmem. Deprecated. Use `table.vars` and
-##'     `table.options` instead.
+##' @param text.table Deprecated. Use `table.vars` and `table.options`
+##'     instead.
 ##' @param seed Deprecated. See \code{seed.R} and \code{seed.nm}.
 ##' @return A data.frame with simulation results (same number of rows
 ##'     as input data). If `sge=TRUE` a character vector with paths to
@@ -322,8 +407,8 @@
 ##'     handling seeds are NMsim features that are done in addition to
 ##'     the \code{method.sim}. Also the \code{modeify.model} argument
 ##'     is handled in addition to the \code{method.sim}. The
-##'     \code{subproblems} and \code{seed} arguments are available to
-##'     all methods creating a \code{$SIMULATION} section.
+##'     \code{subproblems} and \code{seed.nm} arguments are available
+##'     to all methods creating a \code{$SIMULATION} section.
 ##'
 ##' Notice, the following functions are internally available to
 ##' `NMsim` so you can run them by say \code{method.sim=NMsim_EBE}
@@ -341,7 +426,6 @@
 ##' (or estimation actually) control stream and want NMsim to run it
 ##' on different data sets.
 ##'
-##' \item \code{NMsim_typical} Deprecated. Use \code{typical=TRUE} instead. 
 ##' 
 ##' \item \code{NMsim_EBE} Simulates _known_ ETAs. By default, the ETA
 ##' values are automatically taken from the estimation run. This is
@@ -372,6 +456,8 @@
 ##' than `NMsim`. For simulation with parameter variability based on
 ##' bootstrap results, use \code{NMsim_default}.
 ##'
+##' \item \code{NMsim_typical} Deprecated. Use \code{typical=TRUE} instead. 
+##'
 ##' }
 ##' @import NMdata
 ##' @import data.table
@@ -382,55 +468,68 @@
 
 
 
-NMsim <- function(file.mod,data,dir.sims, name.sim,
-                  order.columns=TRUE,
-                  file.ext=NULL,
-                  ## tab.ext=NULL,
-                  script=NULL,subproblems=NULL,
+NMsim <- function(file.mod,data,
+                  subproblems=NULL,
                   reuse.results=FALSE,
                   seed.R,
                   seed.nm,
-                  args.psn.execute,
+                  name.sim,
                   table.vars,
                   table.options,
-                  text.sim="",
+                  table.format,
+                  carry.out=TRUE,
                   method.sim=NMsim_default,
                   typical=FALSE,
-                  execute=TRUE,sge=FALSE,
-                  nc=1,transform=NULL,
-                  method.execute,
                   inits,
-                  method.update.inits,
-                  create.dirs=TRUE,dir.psn,
-                  modify.model,
+                  modify,
+                  filters,
                   sizes,
-                  sim.dir.from.scratch=TRUE,
-                  col.row,
-                  args.NMscanData,
                   path.nonmem=NULL,
-                  nmquiet,
-                  progress,
+                  sge=FALSE,
+                  nc=1,
+                  execute=TRUE,
+                  script=NULL,
+                  transform=NULL,
+                  order.columns=TRUE,
+                  method.execute,
+                  nmrep,
+                  col.flagn=FALSE,
+                  sim.dir.from.scratch=TRUE,
+                  create.dirs=TRUE,
+                  dir.psn,
+                  args.psn.execute,
+                  args.NMscanData,
                   as.fun,
-                  suffix.sim,
-                  text.table,
                   system.type=NULL,
+                  dir.sims,
                   dir.res,
                   file.res,
                   wait,
+                  text.sim="",
                   auto.dv=TRUE,
                   clean,
                   quiet=FALSE,
+                  nmquiet,
+                  progress,
                   check.mod = TRUE,
-                  seed,
-                  list.sections,
                   format.data.complete="rds",
+### deprecated
+                  text.table,
+                  suffix.sim,
+                  seed,
+                  file.ext=NULL,
+                  method.update.inits,
+                  modify.model,
+                  list.sections,
                   ...
                   ){
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
     
     . <- NULL
-    ..name.sim <- NULL
+    ..carry.out <- NULL
     ..dir.res <- NULL
+    ..name.sim <- NULL
+    col.row <- NULL
     DATAROW <- NULL
     data.name <- NULL
     default <- NULL
@@ -440,6 +539,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     dir.sim <- NULL
     DV <- NULL
     est <- NULL
+    fast.tables <- NULL
     fn.data <- NULL
     f.exists <- NULL
     fn.sim.predata <- NULL
@@ -457,9 +557,10 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     lst <- NULL
     MDV <- NULL
     model <- NULL
+    model.sim <- NULL
     mod <- NULL
     n <- NULL
-    name.mod <- NULL
+    ## name.mod <- NULL
     NEWMODEL <- NULL
     nmsim <- NULL
     NMsimTime <- NULL
@@ -480,12 +581,13 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     path.rds.exists <- NULL
     ROW <- NULL
     ROWMODEL <- NULL
-    ROWMODEL2 <- NULL
-    rowtmp <- NULL
-    run.mod <- NULL
-    run.sim <- NULL
+    ## ROWMODEL2 <- NULL
+    ## rowtmp <- NULL
+    ##    run.mod <- NULL
+    ## run.sim <- NULL
     sim <- NULL
     tab.ext <- NULL
+    tmprow <- NULL
     text <- NULL
     textmod <- NULL
     value <- NULL
@@ -521,7 +623,9 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         if(!is.list(args.NMscanData)) stop("args.NMscanData must be a list.")
         if(any(names(args.NMscanData)=="")) stop("All elements in args.NMscanData must be named.")
     }
-    args.NMscanData.default <- list(merge.by.row=FALSE,col.model="model.sim")
+    args.NMscanData.default <- list(merge.by.row=FALSE,col.model=NULL)
+    ## moving this from NMscanData to be handled by NMreadSim or a sub-function hereof
+    ##,col.model="model.sim")
     
     if(missing(progress)) progress <- NULL
     
@@ -554,7 +658,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     method.update.inits <- inits$method
     file.ext <- inits$file.ext
     
-    
+    if(isFALSE(col.flagn) && packageVersion("NMdata") <= "0.1.9.903") col.flagn <- NULL
 
 ### seed.R
     if(missing(seed.R)) seed.R <- NULL
@@ -603,48 +707,117 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     name.sim.paths <- cleanStrings(name.sim)
 
     modelname <- NULL
-    
-    if(missing(col.row)) col.row <- NULL
-    col.row <- NMdata:::NMdataDecideOption("col.row",col.row)
+    input.archive <- FALSE
 
-    
-    input.archive <- inputArchiveDefault
-
-    if(missing(modify.model)) modify.model <- NULL
     if(!missing(list.sections)){
-        if(!is.null(modify.model)){
-            stop("both list.sections (deprecated argument) and modify.model supplied. Please use only modify.model.")
+        stop("`list.sections` is deprecated. Use `modify`.")
+    }
+    
+    if(missing(modify)) modify <- NULL
+    if(!missing(modify.model)){
+        if(!is.null(modify)){
+            stop("both `modify.model` (deprecated argument) and `modify` supplied. Please use only `modify`.")
         }
-        message("\'list.sections\' is deprecated. Please use \'modify.model\'.")
+        message("`modify.model` is deprecated. Please use `modify`.")
+        modify <- modify.model
     }
 
+    if(missing(subproblems)|| is.null(subproblems)) subproblems <- 0
 
 ###  Section end: Checking aguments
 
-    ## if(!is.null(transform) && !transform!=FALSE) {message("transform is CURRENTLY NOT SUPPORTED. Will be back in the future.")}
+    dt.models <- data.table(file.mod=file.mod)
+    ##dt.models[,run.mod:=fnExtension(basename(file.mod),"")]
+    dt.models[,model:=fnExtension(basename(file.mod),"")]
+    dt.models[,name.sim:=..name.sim]
+    dt.models[,fast.tables:=FALSE]
+    dt.models[,carry.out:=list(..carry.out)]
+    dt.models[,NMsimVersion:=packageVersion("NMsim")]
+    dt.models[,NMsimTime:=Sys.time()]
+
+    
     warn.notransform <- function(transform){
         if(is.null(transform)) return(invisible(NULL))
         warning("`transform` (argument) ignored since NMsim is not reading the simulation results.")
     }
     
-
+    if(missing(nmrep)||is.null(nmrep)) nmrep <- subproblems>0
     if(missing(table.vars)) table.vars <- NULL
     if(missing(table.options)) table.options <- NULL
-### generate text.table as the combination of table.vars and table.options
-    if(missing(text.table) || is.null(text.table)){
-        if(missing(table.options)||is.null(table.options)){
-            table.options <- c("NOPRINT","NOAPPEND")
-        }
-        if(!is.null(table.vars)){
-            text.table <- paste(paste(table.vars,collapse=" "),paste(table.options,collapse=" "))
-        }
-    } else{
-        if(!is.null(table.vars) || !is.null(table.options)){
-            stop("argument \'text.table\' is deprecated. Please use \'table.vars\' and/or \'table.options\' instead.")
-        }
-        message("argument \'text.table\' is deprecated. Please use \'table.vars\' and/or \'table.options\' instead.")
+
+    if(missing(text.table)) {
+        text.table <- NULL
     }
 
+    if(!is.null(text.table)) {
+        if(!is.null(table.vars) || !is.null(table.options)){
+            stop("argument \'text.table\' is deprecated. Please use \'table.vars\' and/or \'table.options\' instead.")
+        } else {
+            warning("argument \'text.table\' is deprecated and should be avoided. Please use \'table.vars\' and/or \'table.options\' instead.")
+        }
+    }
+
+    if(missing(table.format)) table.format <- NULL
+    
+
+### fast.tables is true if table.vars is provided and table.options are untouched.
+
+    if(subproblems>0 &&
+       !is.null(table.vars)
+       ## this has not been resolved in NMdata
+       ## && packageVersion("NMdata")<"1.1.7"
+       ){
+        
+        tabv2 <- paste(table.vars,collapse=" ")
+### don't add col.row here. It is model dependent and will be added when writing $TABLE
+        ##tabv2 <- paste(col.row,tabv2)
+### NMREP can be added here because it is not used if $TABLE isn't overwritten
+        if(nmrep) tabv2 <- paste(tabv2,"NMREP")
+        tabv2 <- gsub(" +"," ",tabv2 )
+        table.vars <- strsplit(tabv2," ")[[1]]
+        table.vars <- unique(table.vars)
+        
+
+### Create NMREP in $ERROR. Adding 1 to start counting at 1.
+        
+        modify <- c(modify,
+                          list(ERROR=add("NMREP=IREP")))
+    }
+    
+    if(!is.null(table.vars)){
+        names.table.vars <- names(table.vars)
+        if(!is.null(names.table.vars)){
+            
+            names.table.vars <- sub("(.+)","\\1=",names.table.vars)
+            table.vars <-
+                paste(names.table.vars,table.vars,sep="")
+        }
+    }
+    
+### generate text.table as the combination of table.vars and table.options
+    if(is.null(text.table)){
+        if(!is.null(table.vars)){
+            if(is.null(table.options)){
+### this is prefered. The fast.tables option. But ONEHEADERALL requires NONMEM 7.4 or later
+                table.options <- c("NOPRINT","NOAPPEND","ONEHEADERALL", "NOTITLE")
+                dt.models[,fast.tables:=TRUE]
+            }
+            if(!is.null(table.format)){
+                table.options <- c(table.options,sprintf("FORMAT=%s",table.format))
+            }
+            text.table <- paste(paste(table.vars,collapse=" "),paste(table.options,collapse=" "))
+        } else {
+            if(!is.null(table.format)){
+                message("`table.format` is ignored. Only used when `table.vars` is supplied.")
+            }
+        }
+    }
+
+    ## this should only be tested if fast.tables is FALSE
+    if(!is.null(table.vars)&&any(!dt.models$fast.tables)&&length(table.vars)<3){
+        message("Using less than three variables in table.vars in combination with subproblems may cause issues. If you get an error, try to add any variable or two to table.vars.")
+    }
+    
     if(missing(nmquiet)) nmquiet <- NULL
 
     ##if(missing(modelname)) modelname <- NULL
@@ -663,6 +836,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     }
     ## dir.sims <- simpleCharArg("dir.sims",dir.sims,default=NULL,accepted=NULL,lower=FALSE)
     dir.sims <- simpleCharArg("dir.sims",dir.sims,file.path(dirname(file.mod),"NMsim"),accepted=NULL,lower=FALSE)
+
     
     if(!dir.exists(dir.sims)){
         if(!create.dirs){
@@ -706,34 +880,18 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     relpathResFromSims <- relative_path(dir.res,dir.sims)
     relpathSimsFromRes <- relative_path(dir.sims,dir.res)
     
-    if(missing(text.table)) text.table <- NULL
-    
-    if(missing(subproblems)|| is.null(subproblems)) subproblems <- 0
 
-    if(subproblems>0 &&
-       !is.null(table.vars)
-       ## this has not been resolved in NMdata
-       ## && packageVersion("NMdata")<"1.1.7"
-       ){
-        tabv2 <- paste(table.vars,collapse=" ")
-        tabv2 <- gsub(" +"," ",tabv2 )
-        if(length(strsplit(tabv2," ")[[1]])<3){
-            message("Using less than three variables in table.vars in combination with subproblems may cause issues. If you get an error, try to add any variable or two to table.vars.")
-        }
-    }
     
-    dt.models <- data.table(file.mod=file.mod)
-    dt.models[,run.mod:=fnExtension(basename(file.mod),"")]
-    dt.models[,name.mod:=run.mod]
+    ## dt.models[,name.mod:=run.mod]
+    ## dt.models[,name.mod:=model]
     dt.models[,pathResFromSims:=relpathResFromSims]
     dt.models[,pathSimsFromRes:=relpathSimsFromRes]
-    dt.models[,NMsimVersion:=packageVersion("NMsim")]
-    dt.models[,NMsimTime:=Sys.time()]
     if(!is.null(names(file.mod))){
         
         names.mod <- names(file.mod)
         names.mod[names.mod==""] <- file.mod[names.mod==""]
-        dt.models[,name.mod:=names.mod]
+        ## dt.models[,name.mod:=names.mod]
+        dt.models[,model:=names.mod]
         rm(names.mod)
     }
     dt.models[,ROWMODEL:=.I]
@@ -742,16 +900,18 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     ## fn.sim <- sub("^run","NMsim",basename(file.mod))
     dt.models[,fn.mod:=basename(file.mod)]
 ### prepending NMsim to model names
-    ## dt.models[,fn.sim:=fnExtension(paste0("NMsim_",name.mod),".mod")]
-### dropping NMsim in front of all model names
-    dt.models[,fn.sim:=fnExtension(name.mod,".mod")]
+    ## dt.models[,fn.sim:=fnExtension(name.mod,".mod")]
+    dt.models[,fn.sim:=fnExtension(model,".mod")]
+    dt.models[,fn.sim:=cleanStrings(fn.sim)]
 
     ## fn.sim should be unique
     dt.models[,n.fn.sim:=.N,by=fn.sim]
     dt.models[n.fn.sim>1,fn.sim:=fnAppend(fn.sim,pad0=floor(log10(n.fn.sim))+1)]
     dt.models[,n.fn.sim:=NULL]
 
-    dt.models[,model:=modelname(fn.sim)]
+    ## dt.models[,model:=modelname(fn.sim)]
+    
+
     
 
     
@@ -766,60 +926,35 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     
 
 ### prepare data sets
-    if(!is.null(data) && is.data.frame(data)) {
-        ##data <- list(copy(data))
-        data <- list(data)
-        data <- lapply(data,as.data.table)
+    data <- NMsimDataPrepare(data,auto.dv=auto.dv,order.columns=order.columns)
 
-    }
-    if(!is.null(data) && is.list(data) && !is.data.frame(data)) {
-        ## if the list contains data.tables, we don't want to edit the data directly (by ref)
-        if(any(sapply(data,is.data.table))){
-            data <- copy(data)
-        }
-        names.data <- names(data)
-        if(is.null(names.data)) {
-            names.data <- as.character(1:length(data))
-        } else if(""%in%names.data) {
-            names.data <- gsub(" ","_",names.data)
-            if(any(duplicated(names.data))) stop("If data is a list of data sets, the list elements must be uniquely named.")
-            names.data[names.data==""] <- as.character(which(names.data==""))
-        }
+    
 
-        ## data sets must not be empty
-        if(any(sapply(data,function(x)x[,.N==0]))){
-            stop("Empty data set provided. If `data` is a list of data sets, make sure all of them are non-empty.")
-        }
+    ## dt.data.tmp <- data.table(DATAROW=1:length(data$data),data.name=names.data)
+    ## if(dt.data.tmp[,.N]==1) dt.data.tmp[,data.name:=""]
 
-        col.sim <- tmpcol(names=sapply(data,names),base="name.sim")
-        if(col.sim != "name.sim") message(sprintf("column name.sim exists, name.sim written to column %s instead.",col.sim))
-        data <- lapply(data,function(x) x[,(col.sim):=..name.sim])
-        
-        dt.data <- data.table(DATAROW=1:length(data),data.name=names.data)
-        if(dt.data[,.N]==1) dt.data[,data.name:=""]
-        dt.models <- egdt(dt.models,dt.data,quiet=TRUE)
-        
-        dt.models[,ROWMODEL:=.I]
-    }
+### doesn't work when dt.models contains columns of type list 
+    ## dt.models <- dt.models[,data$dt.data,by=dt.models]
+    dt.models <- egdt(dt.models,data$dt.data,quiet=TRUE)
+    
+
+    
+    dt.models[,ROWMODEL:=.I]
+
+####### TODO
+    ## construct model-specific paths to data sets on file. say parent dir of fn.sim, then data/name_data.csv. They must be a column in dt.models
+    
+    ## save the unique data:datapath combinations
+
+    ## indicate for those that data should not be re-saved. The caveat is the VPC style probably has te be different.
+
+    ## rewrite where NMwriteData is done to only generate text. Or even do that here?
+    
+
+    
     if(is.null(data)){
         dt.models[,data.name:=""]
-    } else {
-        if(auto.dv){
-            
-            data <- lapply(data,function(x){
-                if("DV"%in%colnames(x)){
-                    x
-                } else {
-                    x[,DV:=NA_real_]
-                    if(!"MDV"%in%colnames(x)){
-                        x[,MDV:=1]
-                    }
-                    x
-                }})
-        }
-        if(order.columns) data <- lapply(data,NMorderColumns)
-    }
-
+    } 
 
     
 
@@ -828,18 +963,25 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
 ### file.mod=c(ref="run01.mod"). name.sim is the name that was
 ### given for the who sim.
     
-
+    
     dt.models[,fn.sim.predata:=fnAppend(fn.sim,name.sim.paths)]
     dt.models[,fn.sim:=fnAppend(fn.sim.predata,as.character(data.name)),by=.(ROWMODEL)]
     
-    ## spaces not allowed in model names
-    dt.models[,fn.sim:=gsub(" ","_",fn.sim)]
-    dt.models[,run.sim:=modelname(fn.sim)]
+    ## spaces not allowed in model file names
+    ## dt.models[,fn.sim:=gsub(" ","_",fn.sim)]
+    dt.models[,fn.sim:=cleanStrings(fn.sim)]
+    ## run.sim should be deprecated. model.sim is what is used in results data. No model is used in results data. But model.sim is the necesary clean name
+
+    ## dt.models[,run.sim:=modelname(fn.sim)]
+    dt.models[,model.sim:=modelname(fn.sim)]
+    ## dt.models[,model.sim:=modelname(fn.sim.predata)]
 
     
     ## dir.sim is the model-individual directory in which the model will be run
+    ## dt.models[,
+    ##           dir.sim:=file.path(dir.sims,paste(name.mod,name.sim.paths,sep="_"))]
     dt.models[,
-              dir.sim:=file.path(dir.sims,paste(name.mod,name.sim.paths,sep="_"))]
+              dir.sim:=file.path(dir.sims,cleanStrings(paste(model,name.sim.paths,sep="_")))]
     
     
     ## path.sim.tmp is a temporary path to the sim control stream - it
@@ -852,7 +994,8 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     ## where tosave input data to be read by simulation control stream
     ## fn.data is the data file name, no path
     
-    dt.models[,fn.data:=paste0("NMsimData_",fnAppend(fnExtension(name.mod,".csv"),name.sim))]
+    ## dt.models[,fn.data:=paste0("NMsimData_",fnAppend(fnExtension(name.mod,".csv"),name.sim))]
+    dt.models[,fn.data:=paste0("NMsimData_",fnAppend(fnExtension(model,".csv"),name.sim.paths))]
     dt.models[,fn.data:=fnAppend(fn.data,data.name),by=.(ROWMODEL)]
     ## dt.models[,fn.data:=gsub(" ","_",fn.data)]
     dt.models[,fn.data:=cleanStrings(fn.data)]
@@ -932,7 +1075,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     ## }
 
     ##if(is.null(inits)) inits <- list(method="nmsim",update=TRUE)
-
+    
     
     
     
@@ -1005,77 +1148,121 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         },by=.(ROWMODEL)]
     }
 
-    
-    dt.models[,{
-        
-### note: insert test for whether run is needed here
-        ## if data is NULL, we will re-use data used in file.mod. Adding row counter if not found.
-        rewrite.data.section <- TRUE
-        
-        if(is.null(data)){
-            data.this <- NMscanInput(file.mod,recover.cols=FALSE,translate=FALSE,apply.filters=FALSE,col.id=NULL,as.fun="data.table")
-            ## col.row <- tmpcol(data,base="ROW")
-            if(!col.row %in% colnames(data.this)){
-                data.this[,(col.row):=.I]
-                setcolorder(data.this,col.row)
-                message(paste0("Row counter was added in column ",col.row,". Use this to merge output and input data."))
-                section.input <- NMreadSection(file.mod,section="input",keep.name=FALSE)
-                
-                section.input <- pasteBegin(x=section.input,paste("$INPUT",col.row),collapse=" ")
-            } else {
-                section.input <- FALSE
+    if(is.null(data)){
+        ##add.var.table <- col.row
+        args.NMscanData.default$merge.by.row <- TRUE
+        ##args.NMscanData.default$col.row <- col.row
+        rewrite.data.section <- FALSE
+        order.columns <- FALSE
+    }
+
+###### write unique data sets
+    if(!is.null(data)){
+
+        if(is.character(carry.out)){
+            
+            not.found <- lapply(data$data,function(dat)carry.out[!carry.out%in% colnames(dat)]) 
+            not.found <- unlist(not.found)
+            not.found <- unique(not.found)
+            if(length(not.found)){
+                warning(paste0("Not all variables in `carry.out` found in (all) data set(s):\n",paste(not.found,collapse=" ")))
             }
-            add.var.table <- col.row
-            args.NMscanData.default$merge.by.row <- TRUE
-            args.NMscanData.default$col.row <- col.row
-            rewrite.data.section <- FALSE
-            order.columns <- FALSE
-
-            col.sim <- tmpcol(data.this,base="name.sim")
-            if(col.sim != "name.sim") warning(sprintf("column name.sim exists, name.sim written to column %s instead.",col.sim))
-            data.this[,(col.sim):=..name.sim]
-        } else {
-            data.this <- data[[DATAROW]]
-
         }
 
-        
+        dt.data.tmp <- unique(dt.models[,.(DATAROW,path.data)])
+        dt.data.tmp[,tmprow:=.I]
+        dt.data.tmp[,{NMwriteData(data$data[[DATAROW]]
+                                 ,file=path.data
+                                 ,genText=F
+                                 ,formats.write=c("csv",format.data.complete)
+                                  ## if NMsim is not controlling $DATA, we don't know what can be dropped.
+                                  ## ,csv.trunc.as.nm=TRUE
+                                 ,script=script
+                                 ,quiet=TRUE)
+### returning a sctring because NMwriteData wit genText may return incompatible results
+                                 ##"OK"
+        },
+        by=tmprow]
+    }
+    
+    
+
+
+
+
+    if(is.null(data)){
+        dt.models.split <- split(dt.models,by="file.mod")
+        dt.split.res <- lapply(dt.models.split,function(dt){
+            file.mod <- unique(dt$file.mod)
+            
+###### VPC mode
+            ## reading with recover.cols. This does not affect what
+            ## will be written to the $INPUT section which is still
+            ## copied from the control stream, then edited to include
+            ## the row identifier.
+            data.this <- NMscanInput(file.mod,recover.cols=TRUE,translate=FALSE,apply.filters=FALSE,col.id=NULL,as.fun="data.table")
+            col.row.this <- tmpcol(data.this,base="NMROW")
+
+            dt[,col.row:=col.row.this]
+            
+            ## if(!col.row %in% colnames(data.this)){
+            data.this[,(col.row.this):=(1:.N)/1000]
+            setcolorder(data.this,c(colnames(data.this)[1],col.row.this))
+            
+            section.input <- NMreadSection(file.mod,section="input",keep.name=FALSE)
+            section.input <- paste(section.input,collapse=" ")
+            section.input <- gsub(","," ",section.input)
+            section.input <- gsub("[ \\s]+"," ",section.input)
+            section.input <- NMdata:::cleanSpaces(section.input)
+            section.input <- gsub(" *= *","=",section.input)
+            
+            elems.input <- strsplit(section.input,split=" ")[[1]]
+            elems.input <- c(elems.input[1],col.row.this,elems.input[-1])
+            section.input <- paste("$INPUT",paste(elems.input,collapse=" "))
+            
+            
 ### save data and replace $input and $data
 #### multiple todo: save only for each unique path.data
-        
-        
-        ## format.data.complete <- "fst"
-        nmtext <- NMwriteData(data.this,file=path.data,
-                              args.NMgenText=list(dir.data=".")
-                             ,formats.write=c("csv",format.data.complete)
-                             ,csv.trunc.as.nm=TRUE
-                             ,script=script
-                             ,quiet=TRUE)
-        
-        ## input
-        if(exists("section.input")){
-            if(!isFALSE(section.input)){
-                NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = list(input=section.input),backup=FALSE,quiet=TRUE)
-            }
-        } else {
-            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["INPUT"],backup=FALSE,quiet=TRUE)
-        }
-        if(rewrite.data.section){
-            ## data
-            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["DATA"],backup=FALSE,quiet=TRUE)    
-        } else {
+            
+            ## format.data.complete <- "fst"
+            
+            nmtext <- NMwriteData(data.this,file=unique(dt$path.data),
+                                  args.NMgenText=list(dir.data=".",col.flagn=col.flagn)
+                                 ,formats.write=c("csv",format.data.complete)
+                                  ## if NMsim is not controlling $DATA, we don't know what can be dropped.
+                                 ,csv.trunc.as.nm=rewrite.data.section
+                                 ,script=script
+                                 ,quiet=TRUE)
+
+
+            dt[,NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = list(input=section.input),backup=FALSE,quiet=TRUE)]
+            
             ## replace data file only
-            NMreplaceDataFile(files=path.sim,path.data=basename(path.data),quiet=TRUE)
-        }
-    },by=.(ROWMODEL)]
-    
+            dt[,NMreplaceDataFile(files=path.sim,path.data=basename(path.data),quiet=TRUE)]
+            
+            dt
+        })
+        dt.models <- rbindlist(dt.split.res)
+        
+    } else {
+        dt.models[,col.row:=data$col.row]
+        
+        dt.models[,{
+            data.this <- data$data[[DATAROW]]
+            rewrite.data.section <- TRUE
+            nmtext <- NMgenText(data.this,file=relative_path(path.data,dirname(path.sim)),quiet=TRUE)
+            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["INPUT"],backup=FALSE,quiet=TRUE)
+            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["DATA"],backup=FALSE,quiet=TRUE)    
+            
+        },by=.(ROWMODEL)]
+    }    
     
 
 #### Section start: Output tables ####
-
+    
     dt.models[,{
         
-        fn.tab.base <- paste0("FILE=",run.sim,".tab")
+        fn.tab.base <- paste0("FILE=",model.sim,".tab")
         lines.sim <- readLines(path.sim)
         
         lines.tables <- NMreadSection(lines=lines.sim,section="TABLE",as.one=FALSE,simplify=FALSE)
@@ -1099,11 +1286,10 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
             lines.tables.new <- list(paste("$TABLE",text.table,fn.tab.base))
         }
         lines.tables.new <- paste(unlist(lines.tables.new),collapse="\n")
-        if(exists("add.var.table")){
-            
-            lines.tables.new <- gsub("\\$TABLE",paste("$TABLE",add.var.table),lines.tables.new)
-        }
-
+        ## if(exists("add.var.table")){
+        ##     lines.tables.new <- gsub("\\$TABLE",paste("$TABLE",add.var.table),lines.tables.new)
+        ## }
+        lines.tables.new <- gsub("\\$TABLE",paste("$TABLE",col.row),lines.tables.new)
         ## if no $TABLE found already, just put it last
         if(length(lines.tables)){
             location <- "replace"
@@ -1120,11 +1306,11 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
     
 ###  Section end: Output tables
 #### DEBUG Does the sim control stream have TABLES at this point?    
-
+    
 
     ## fun simulation method
     dt.models.gen <- dt.models[,
-                               method.sim(file.sim=path.sim,file.mod=file.mod,data.sim=data[[DATAROW]],...)
+                               method.sim(file.sim=path.sim,file.mod=file.mod,data.sim=data$data[[DATAROW]],...)
                               ,by=.(ROWMODEL)]
     
     
@@ -1197,24 +1383,28 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
         dt.models,
         by="ROWMODEL"
        ,quiet=TRUE)
+
+
     
     ## path.sim.lst is full path to final output control stream to be
     ## read by NMscanData. This must be derived after method.sim may
     ## have spawned more runs.
     dt.models[,path.sim.lst:=fnExtension(path.sim,".lst")]
+    dt.models[,model.sim:=modelname(path.sim)]
     
-    dt.models[,ROWMODEL2:=.I]
+    ## dt.models[,ROWMODEL2:=.I]
+    dt.models[,ROWMODEL:=.I]
     ## dt.models[,seed:={if(is.function(seed))  seed() else seed},by=.(ROWMODEL2)]
     ## if(is.numeric(dt.models[,seed])) dt.model[,seed:=sprintf("(%s)",seed)]
 
 
 ### if typical
     if(typical){
-        dt.mods.sim <- dt.models[,.(mod=typicalize(file.sim=path.sim,file.mod=file.mod,return.text=TRUE,file.ext=file.ext)),by=.(ROWMODEL2,path.sim)]
+        dt.mods.sim <- dt.models[,.(mod=typicalize(file.sim=path.sim,file.mod=file.mod,return.text=TRUE,file.ext=file.ext)),by=.(ROWMODEL,path.sim)]
         ## write results
         
         ## dt.models[,writeTextFile(dt.mods.sim[ROWMODEL2==ROWMODEL,mod],file=path.sim),by=ROWMODEL2]
-        dt.mods.sim[,writeTextFile(lines=mod,file=unique(path.sim)),by=ROWMODEL2]
+        dt.mods.sim[,writeTextFile(lines=mod,file=unique(path.sim)),by=ROWMODEL]
     }
 
     
@@ -1240,12 +1430,12 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
             }
             if(n.sim.sections == 1 ){
                 
-                name.sim <- names.sections[grepl("^(SIM|SIMULATION)$",names.sections)]
-                section.sim <- all.sections.sim[[name.sim]]
+                name.simsec <- names.sections[grepl("^(SIM|SIMULATION)$",names.sections)]
+                section.sim <- all.sections.sim[[name.simsec]]
                 
                 section.sim <- gsub("\\([0-9]+\\)","",section.sim)
                 
-### pasting the seed after SIM(ULATION) and after ONLYSIM(ULATION) if the latter exists
+### pasting the seed after SIM(ULATION) and after ONLYSIM(ULATION) if the latter exists. seed refers to dt.models[,seed], not the argument called seed
                 section.sim <- sub("(SIM(ULATION)*( +ONLYSIM(ULATION)*)*) *",paste("\\1",seed),section.sim)
 
                 if(subproblems>0){
@@ -1257,29 +1447,39 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
                 lines.sim <- NMdata:::NMwriteSectionOne(lines=lines.sim,section="simulation",newlines=section.sim,quiet=TRUE,backup=FALSE)
                 writeTextFile(lines.sim,path.sim)
             }
-        },by=.(ROWMODEL2)]
+        },by=.(ROWMODEL)]
     }
     
     
     
-#### Section start: Additional control stream modifications specified by user - modify.model ####
+#### Section start: Additional control stream modifications specified by user - modify ####
 
     if(missing(sizes)) sizes <- NULL
     if(!is.null(sizes)){
         dt.models[,{
             args.sizes <- append(list(file.mod=path.sim,newfile=path.sim,write=TRUE),sizes)
             do.call(NMupdateSizes,args.sizes)
-        },by=.(ROWMODEL2)]
+        },by=.(ROWMODEL)]
     }
 
-    if( !is.null(modify.model) ){
-        modifyModel(modify.model,dt.models)
+    
+    if(missing(filters)) filters <- NULL
+    if(!is.null(filters)){
+        dt.models[,{
+            args.filters <- list(file=path.sim,filters=filters,write=TRUE)
+            do.call(NMwriteFilters,args.filters)
+        },by=.(ROWMODEL)]
+    }
+
+
+    if( !is.null(modify) ){
+        modifyModel(modify,dt.models)
     }
     
-### Section end: Additional control stream modifications specified by user - modify.model
+### Section end: Additional control stream modifications specified by user - modify
 
 
-
+    
 
 ######  store NMscanData arguments
     args.NMscanData.list <- c(args.NMscanData,args.NMscanData.default)
@@ -1359,10 +1559,8 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
             ## files.unwanted <- list.files(
             if(file.exists(path.sim.lst)){
                 ## message("Existing output control stream found. Removing.")
-                
                 dt.outtabs <- try(NMscanTables(path.sim.lst,meta.only=TRUE,as.fun="data.table",quiet=TRUE),silent=TRUE)
                 if(!inherits(dt.outtabs,"try-error") && is.data.table(dt.outtabs) && nrow(dt.outtabs)>0){
-                    
                     file.remove(
                         dt.outtabs[file.exists(file),file]
                     )
@@ -1370,7 +1568,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
                 unlink(path.sim.lst)
 
             }
-
+            
             
             NMexec(files=path.sim,sge=sge,nc=nc,wait=wait.exec,
                    args.psn.execute=args.psn.execute,nmquiet=nmquiet,quiet=TRUE,
@@ -1391,7 +1589,7 @@ NMsim <- function(file.mod,data,dir.sims, name.sim,
             }
             
             path.sim.lst
-        },by=.(ROWMODEL2)]
+        },by=.(ROWMODEL)]
         if(do.pb){
             close(pb)
         }

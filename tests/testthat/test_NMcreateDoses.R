@@ -109,12 +109,17 @@ test_that("NA columns",{
 
     ## options(warn=2)
     fileRef <- "testReference/NMcreateDoses_04e.rds"
+
     res <- NMcreateDoses(TIME=c(0,12),AMT=data.table(dos=1:2,AMT=c(10,20)),CMT=NA)
 
     expect_equal_to_reference(res,fileRef)
 
-})
+    ## NULL works too
+    res.null <- NMcreateDoses(TIME=c(0,12),AMT=data.table(dos=1:2,AMT=c(10,20)),CMT=NULL)
 
+    expect_equal(res,res.null)
+    
+})
 
 
 
@@ -245,11 +250,12 @@ test_that("covs in multiple arguments",{
 })
 
 test_that("No AMT",{
-    fileRef <- "testReference/NMcreateDoses_16.rds"
 
-    res <- NMcreateDoses(TIME=0)
-    expect_equal_to_reference(res,fileRef)
+    ## res <- NMcreateDoses(TIME=0)
+    ## expect_equal_to_reference(res,fileRef)
 
+    expect_error(NMcreateDoses(TIME=0))
+    
     if(F){
         res
         readRDS(fileRef)
@@ -257,10 +263,9 @@ test_that("No AMT",{
 })
 
 test_that("Suppress EVID",{
-    fileRef <- "testReference/NMcreateDoses_17.rds"
 
-    res1 <- NMcreateDoses(TIME=0,EVID=NULL)
-    res2 <- NMcreateDoses(TIME=0,EVID=NA)
+    res1 <- NMcreateDoses(TIME=0,AMT=1,EVID=NULL)
+    res2 <- NMcreateDoses(TIME=0,AMT=1,EVID=NA)
     expect_equal(res1,res2)
 
 })

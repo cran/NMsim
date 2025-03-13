@@ -13,7 +13,6 @@ NMdataConf(
 
 dt.amt <- data.table(DOSE=c(100,400))
 dt.amt[,AMT:=DOSE*1000]
-dt.amt
 doses.sd <- NMcreateDoses(TIME=0,AMT=dt.amt,as.fun="data.table")
 doses.sd[,dose:=paste(DOSE,"mg")]
 doses.sd[,regimen:="SD"]
@@ -26,7 +25,7 @@ dat.sim <- copy(dat.sim.sd)
 
 dat.sim[,ROW:=.I]
 
-head(dat.sim)
+##head(dat.sim)
 
 dat.sim[,BBW:=75]
 
@@ -46,15 +45,17 @@ test_that("Basic",{
                   name.sim = "sd1",
                   seed.nm=2342,
                   execute=FALSE,
-                  method.update.inits="nmsim")
+                  ## method.update.inits="nmsim"
+                  )
 
     ## ref <- readRDS(fileRef)
-    expect_equal_to_reference(sim1,fileRef)
+    mod <- NMreadSection("testOutput/xgxr025_sd1/xgxr025_sd1.mod")
+    expect_equal_to_reference(mod,fileRef)
 
     ## readLines("testOutput/xgxr025_sd1/xgxr025_sd1.mod")
     
 })
-## }
+
 
 
 if(FALSE){
@@ -89,15 +90,15 @@ test_that("modify.model",{
 
     mod <- NMreadSection("testOutput/xgxr021_sd1_modify/xgxr021_sd1_modify.mod")
     
-
     ## ref <- readRDS(fileRef)
     expect_equal_to_reference(mod,fileRef)
 
     if(F){
         ref <- readRDS(fileRef)
         ref$PK
+
         ref$ERROR
-NMreadSection(file.mod,section="ERROR")
+        mod$ERROR
         
         mod$THETA
         ref$THETA
@@ -107,6 +108,15 @@ NMreadSection(file.mod,section="ERROR")
 
         mod$SIGMA
         ref$SIGMA
+        
+        mod$INPUT
+        ref$INPUT
+        
+        mod$DATA
+        ref$DATA
+
+        mod$TABLE
+        ref$TABLE
     }
 })
 
@@ -150,6 +160,15 @@ test_that("modify.model with list",{
 
         mod$SIGMA
         ref$SIGMA
+
+        mod$INPUT
+        ref$INPUT
+        
+        mod$DATA
+        ref$DATA
+
+        mod$TABLE
+        ref$TABLE
     }
 })
 
@@ -182,12 +201,23 @@ test_that("NMsim_EBE",{
 
     if(F){
         ref <- readRDS(fileRef)
+        mod$PK
+
         ref$OMEGA
         mod$OMEGA 
         ref$SIGMA
         mod$SIGMA
         ref$SIMULATION
         mod$SIMULATION
+        
+        mod$INPUT
+        ref$INPUT
+        
+        mod$DATA
+        ref$DATA
+
+        mod$TABLE
+        ref$TABLE
     }
 
 
@@ -299,9 +329,9 @@ test_that("inits - modify parameter",{
             ref <- readRDS(fileRef)
             mod
             ref
-            }
+        }
 
-}
+    }
     
 })
 
@@ -330,3 +360,142 @@ test_that("No ONLYSIM",{
 
 })
 
+
+test_that("Named table variables",{
+
+    fileRef <- "testReference/NMsim_08.rds"
+
+    file.mod <- "testData/nonmem/xgxr025.mod"
+    sim1 <- NMsim(file.mod=file.mod,
+                  data=dat.sim,
+                  dir.sim="testOutput",
+                  name.sim = "tabvars1",
+                  seed.nm=2342,
+                  execute=FALSE,
+                  method.update.inits="nmsim",
+                  table.vars=c("PRED",TIMENEW="TIME")
+                  )
+
+    sim2 <- NMsim(file.mod=file.mod,
+                  data=dat.sim,
+                  dir.sim="testOutput",
+                  name.sim = "tabvars2",
+                  seed.nm=2342,
+                  execute=FALSE,
+                  method.update.inits="nmsim",
+                  table.vars=cc(PRED,TIMENEW=TIME)
+                  )
+
+
+    sim3 <- NMsim(file.mod=file.mod,
+                  data=dat.sim,
+                  dir.sim="testOutput",
+                  name.sim = "tabvars3",
+                  seed.nm=2342,
+                  execute=FALSE,
+                  method.update.inits="nmsim",
+                  table.vars=c("PRED TIMENEW=TIME")
+                  )
+
+
+    
+    res1 <- NMreadSection("testOutput/xgxr025_tabvars1/xgxr025_tabvars1.mod",section="TABLE")
+    res2 <- NMreadSection("testOutput/xgxr025_tabvars2/xgxr025_tabvars2.mod",section="TABLE")
+    res3 <- NMreadSection("testOutput/xgxr025_tabvars3/xgxr025_tabvars3.mod",section="TABLE")
+    res1
+    res2
+    res3
+
+    expect_true(grepl("TIMENEW",res1))
+
+    expect_equal(sub("tabvars[0-9]","",res1),
+                 sub("tabvars[0-9]","",res2)
+                 )
+
+    expect_equal(sub("tabvars[0-9]","",res1),
+                 sub("tabvars[0-9]","",res3)
+                 )
+
+    
+    ## readLines("testOutput/xgxr025_sd1/xgxr025_sd1.mod")
+    
+})
+
+
+test_that("seed, seed.R, seed.nm",{
+
+    fileRef <- "testReference/NMsim_09.rds"
+
+    file.mod <- "testData/nonmem/xgxr025.mod"
+    sim1 <- NMsim(file.mod=file.mod,
+                  data=dat.sim,
+                  dir.sim="testOutput",
+                  name.sim = "seed1nm",
+                  seed.nm=2,
+                  execute=FALSE
+                  )
+
+    res.nm <- NMreadSection("testOutput/xgxr025_seed1nm/xgxr025_seed1nm.mod",section="sim")
+    res.nm
+
+    sim1 <- NMsim(file.mod=file.mod,
+                  data=dat.sim,
+                  dir.sim="testOutput",
+                  name.sim = "seed1r",
+                  seed.R=2,
+                  execute=FALSE
+                  )
+
+    res.r <- NMreadSection("testOutput/xgxr025_seed1r/xgxr025_seed1r.mod",section="sim")
+    res.r
+
+    sim1 <- NMsim(file.mod=file.mod,
+                  data=dat.sim,
+                  dir.sim="testOutput",
+                  name.sim = "seed1depr",
+                  seed=2,
+                  execute=FALSE
+                  )
+    
+    res.depr <- NMreadSection("testOutput/xgxr025_seed1depr/xgxr025_seed1depr.mod",section="sim")
+    res.depr
+
+    res.all <- list(res.nm,res.nm,res.depr)
+
+    expect_equal_to_reference(res.all,fileRef)
+
+
+### dont use seed.nm and seed simultaneously
+    expect_error(NMsim(file.mod=file.mod,
+                       data=dat.sim,
+                       dir.sim="testOutput",
+                       seed.nm=3,
+                       seed=2,
+                       execute=FALSE
+                       ))
+
+    
+})
+
+
+test_that("Basic - deprecated update inits method",{
+
+###  On windows this gives and error that tmp.dat is not found.
+    fileRef <- "testReference/NMsim_10.rds"
+
+    file.mod <- "testData/nonmem/xgxr025.mod"
+    sim1 <- NMsim(file.mod=file.mod,
+                  data=dat.sim,
+                  dir.sim="testOutput",
+                  name.sim = "inits_depr",
+                  seed.nm=2342,
+                  execute=FALSE,
+                  method.update.inits="nmsim")
+
+    ## ref <- readRDS(fileRef)
+    mod <- NMreadSection("testOutput/xgxr025_inits_depr/xgxr025_inits_depr.mod")
+    expect_equal_to_reference(sim1,fileRef)
+
+    ## readLines("testOutput/xgxr025_sd1/xgxr025_sd1.mod")
+    
+})

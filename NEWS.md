@@ -1,3 +1,75 @@
+# NMsim 0.2.0
+
+## Improvements
+* A greatly improved handling of data files has been implemented. This
+  improves speed, reduced memory and disk usage, and adds features. It
+  is fully backward compatible with the user interface of earlier
+  versions.
+  - Data sets are only saved once for each model.
+  - Output tables are written and read more efficently. This is
+    obtained by a combination of default `TABLE` options and an
+    efficient method to read the tables if those options have not been
+    changed by the user. If the user does change them, a more robust
+    but slower and more memory intensive method is used.
+  - Input and output data are now by default merged using a row
+    identifier inserted by NMsim. This makes NMsim robust to Nonmem
+    code that does not simulate all rows in input data.
+  - Subproblems are automatically counted in the `NMREP` column in
+    output. Force the inclusion of this column using the `nmrep`
+    argument if needed even if not using `subproblems`.
+
+* Variables from input data to be included in results can be specified
+  using the new `carry.out` argument. The default behavior by
+  `NMsim()` is to include all variables from input data on the
+  result. However, if the data set contains many rows or columns, this
+  can be memory demanding. Now you can minimize memory use and
+  maximize speed by limiting the variables in both input and
+  output. For example
+
+```
+simres <- NMsim(file.mod,data,
+                table.vars=c("PRED","IPRED","Y"),
+                carry.out=c("ID","TIME",`EVID`)
+                )
+```
+
+`simres` will in this case contain only `PRED`, `IPRED`, and `Y` from
+the output table, and only `ID`, `TIME`, and `EVID` from the input
+`data.frame` (`data`). `NMsim()` also takes a new argument
+`table.format` which can be used to adjust the table format. But
+normally, that is not be necessary. There is no reason to list `ID` or
+any other column from the input data in `table.vars` since they can be
+carried over directly fro the input data, avoiding potential loss of
+accuracy in writing and reading to and from text files. You do not
+need to worry about merging input and output data correctly -
+`NMsim()` handles that internally using its own row identifier.
+
+* Handling of Nonmem data filters. In case a sim is run without an
+  simulation input data set, `NMsim()` by default reuses the
+  estimation data set and the `IGNORE` and `ACCEPT` statements in the
+  estimation control stream. This is very useful for visual predictive
+  check (VPC) simulations. However, the aim may be to run the
+  simulation on the same data set with differnt inclusions. A common
+  example of the is if the estimation was run without samples below
+  the quantification limit (M1), but the simulation also be performed
+  on those samples. This can now be done by passing new filters to
+  `NMsim()`. In fact, this can even be done by first reading the
+  filters from the control stream, then easily editing them, before
+  passing them to `NMsim()`.
+
+## Other changes
+* `NMsim()`'s argument `modify.model` has been renamed to
+  `modify`. This is to align argument names with other arguments
+  available for model modification, namely `inits`, `sizes`, and
+  `filters`.
+
+* `NMcreateDoses()` requires AMT to be provided.
+
+* `addEVID2()` only requires `CMT` argument when the column of the
+  same name is present in `data`. Not all models require `CMT` and
+  this change allows for building such data sets with
+  `NMcreateDoses()` and `addEVID2()`.
+
 # NMsim 0.1.6
 
 * A major improvement is implemented on `NMSim_NWPRI()`, the
