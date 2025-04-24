@@ -71,7 +71,7 @@ NMsim_NWPRI <- function(file.sim,file.mod,data.sim,PLEV=0.999,...){
 ### NMsim_default() is run because it inserts $SIMULATION instead of
 ### $ESTIMATION and a few other things that are always needed.
     files.needed.def <- NMsim_default(file.sim=file.sim,file.mod,data.sim,...)
-    lines.sim <- readLines(file.sim)
+    lines.sim <- readLines(file.sim,warn=FALSE)
 
     cov <- NMreadCov(fnExtension(file.mod,".cov"))
     pars <- NMreadExt(file.mod,return="pars",as.fun="data.table")[,value:=est]
@@ -106,7 +106,7 @@ NMsim_NWPRI <- function(file.sim,file.mod,data.sim,PLEV=0.999,...){
     lines.thetapv <-
         NMcreateMatLines(
             cov.l[par.type.i=="THETA"&par.type.j=="THETA", .(i, j, value, parameter.i, parameter.j, par.type.i,  par.name, par.type.j)]
-          , type="THETAPV",as.one.block=TRUE)
+          , type="THETAPV",as.one.block=TRUE,fix=TRUE)
     
     ## $OMEGAP
     # note: NMcreateMatLines sets 0 FIXED sigmas/omegas to 1e-30 to avoid non-semi-positive definite matrices error
@@ -145,7 +145,7 @@ NMsim_NWPRI <- function(file.sim,file.mod,data.sim,PLEV=0.999,...){
     lth = 2*nrow(pars[par.type=="THETA"]) + nrow(nwpri_df) + 10 
     lvr = 2*nrow(pars[(par.type=="OMEGA"|par.type=="SIGMA")&i==j]) + nrow(pars[par.type=="THETA"]) + 10
     
-    lines.sim = NMsim::NMupdateSizes(file.mod=NULL, newfile=NULL,lines = lines.sim, LTH = lth, LVR = lvr)
+    lines.sim = NMupdateSizes(file.mod=NULL, newfile=NULL,lines = lines.sim, LTH = lth, LVR = lvr,warn=FALSE)
     
 ### update the simulation control stream
     ## if(return.text){

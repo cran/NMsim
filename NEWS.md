@@ -1,6 +1,85 @@
+# NMsim 0.2.1
+## New Features
+* `NMaddSamples()` replaces the `addEVID2()` function. `addEVID2()`
+  will still work and redirects to `NMaddSamples()` for backward
+  compatibility. Your existing work will still work but you will get a
+  (suppressable) message about the name change. Especially due to work
+  on optimal sampling with `NMsim` by Ahmed Abulfathi and myself, we
+  need a more flexible interface for adding samples.
+
+* `NMaddSamples()` comes with a new argument `DV`. By default
+  `NMaddSamples()` (used to be, `addEVID2()`) adds rows without `DV`
+  values and with `EVID=2` and `MDV=1`. If `DV` is supplied,
+  `NMaddSamples()` will include that value in the `DV` column and by
+  default use `EVID=0` and `MDV=0`. An example where this is useful is
+  when generating datasets for `$DESIGN` where `DV=0` is often used.
+
+* `samplePars()` is a new function that replaces
+  `sampleParsSimpar()`. `samplePars()` takes the `method` argument
+  which can be used to switch between multivariate normal distribution
+  `method="mvrnorm"` and using the `simpar` package to get use
+  Inverse-Wishart distribution for `$OMEGA` and `$SIGMA`
+  parameters. Notice, both methods are fully automated in NMsim - all
+  you need to write is the path to a control stream and the number
+  (`nsims`) of parameter sets wanted.
+
+* `simPopEtas()` by default does not overwrite an existing `.phi`
+  file. `simPopEtas()` is used to generate sampled `ETA`s for use in
+  future model simulations with the same synthetic population
+  (`ETA`s). If the `.phi` file that stores the `ETA`s gets overwritten
+  using a new seed, it will affect simulations using that `.phi`
+  file. Overwriting the `.phi` file with different seeds should
+  therefore be avoided, and this new behavior of protecting the
+  generated `.phi` files reduces that risk.
+  
+## Bugfixes
+* `NMsim_VarCov()` would not include `$OMEGA` and `$SIGMA` blocks which
+  lead to errors in Nonmem. This bug was likely introduced in NMsim
+  0.1.6 and has now been fixed.
+
+* Version 0.2.0 gave some warnings about non-existing columns. The
+  warnings are benign and can be safely ignored. They are
+  avoided in Version 0.2.1.
+
+* Updating initial values in models using `SAME` argument on random
+  effects (e.g. in between-occasion variability) would fail if the
+  effects were fixed. Resolved. Thanks to Sergio Iadevaia for
+  reporting this.
+
+* Data sets with commas in character columns would make `NMsim`
+  fail. Support for such data sets had not been carried over with the
+  new data handling approach implemented in version 0.2.0. This has
+  now been resolved.
+
+* `NMcreateDoses()` had a bug in the `addl.lastonly` feature which
+  would throw errors when `TIME` was longer than
+  two. `addl.lastonly=TRUE` is default and means that if the length of
+  the `ADDL` argument is one, it will be applied to the last dose
+  only. This is for the common case where initial doses (say a load or
+  an initial escalation phase) are followed by a maintenance
+  regimen. The bug has been resolved.
+  
+* `NMaddSamples()` would fail if using the `TAPD` argument when `TAPD`
+  was already available as a column in data. Fixed.
+
+## Other Improvements 
+* The configuration of job submission is simplified when jobs are run
+  in parallel with single-core processing.
+
+* Checks have been included in `summarizeCovs()` for whether `NA`'s
+  are produced. `summarizeCovs()` is used to summarize simulated
+  covariate effects (typically for forest plots). Especially, if for
+  some reason the reference exposure is zero (likely an error by the
+  modeler), `summarizeCovs()` would throw an error. Now
+  `summarizeCovs()` will try to identify this, give useful messages
+  back, and report the estimates.
+
+* Consistent ordering of columns in simulation results independently
+  of `col.id` and `col.time`.
+
 # NMsim 0.2.0
 
-## Improvements
+## New Features
 * A greatly improved handling of data files has been implemented. This
   improves speed, reduced memory and disk usage, and adds features. It
   is fully backward compatible with the user interface of earlier

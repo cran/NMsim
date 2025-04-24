@@ -7,7 +7,7 @@
 ##' @return The modified control stream
 ##' @keywords internal
 
-NMreplaceInits <- function(inits,...){
+NMreplaceInits <- function(inits,fix=FALSE,...){
 
 
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
@@ -21,13 +21,21 @@ NMreplaceInits <- function(inits,...){
 
 ### Section end: Dummy variables, only not to get NOTE's in pacakge checks
 
-
-
+    
+    
     ## create THETA section
+    inits <- copy(inits)
+    setDT(inits)
+    if(!"FIX"%in%colnames(inits)) {
+        inits[,FIX:=0]
+        ##inits$FIX <- 0
+    }
     thetas <- inits[par.type=="THETA"]
     setorder(thetas,i)
-
-    thetas[,str.fix:=fifelse(as.logical(FIX)," FIX","")]
+    
+    ## thetas[,str.fix:=fifelse(as.logical(FIX)," FIX","")]
+    thetas[,str.fix:=""]
+    thetas[as.logical(FIX)==TRUE,str.fix:=" FIX"]
     lines.theta <- c("$THETA",
                      thetas[,paste0(value,str.fix)]
                      )
@@ -36,9 +44,9 @@ NMreplaceInits <- function(inits,...){
     ## create OMEGA section
     omegas <- inits[par.type=="OMEGA"]
 
-    lines.omega <- NMcreateMatLines(omegas,type="OMEGA")
+    lines.omega <- NMcreateMatLines(omegas,type="OMEGA",as.one.block=FALSE,fix=fix)
     sigmas <- inits[par.type=="SIGMA"]    
-    lines.sigma <- NMcreateMatLines(sigmas,type="SIGMA")
+    lines.sigma <- NMcreateMatLines(sigmas,type="SIGMA",as.one.block=FALSE,fix=fix)
 
 
     list.sections <- list(THETA=lines.theta

@@ -15,6 +15,8 @@
 ##'     argument.
 ##' @param file.phi An optional phi file to write the generated
 ##'     subjects to.
+##' @param overwrite If `file.phi` exists already, overwrite it?
+##'     Default is `FALSE`.
 ##' @param as.fun The default is to return data as a data.frame. Pass
 ##'     a function (say `tibble::as_tibble`) in as.fun to convert to
 ##'     something else. If data.tables are wanted, use
@@ -29,7 +31,7 @@
 ##' @importFrom MASS mvrnorm
 ##' @export
 
-simPopEtas <- function(file,N,seed.R,pars,file.phi,as.fun,file.mod,seed,...){
+simPopEtas <- function(file,N,seed.R,pars,file.phi,overwrite=FALSE,as.fun,file.mod,seed,...){
 
     par.type <- NULL
     i <- NULL
@@ -52,14 +54,15 @@ simPopEtas <- function(file,N,seed.R,pars,file.phi,as.fun,file.mod,seed,...){
 
     ## seed deprecated with NMsim 0.1.6 2025-01-29 
     if(missing(seed)) seed <- NULL
-    if(!missing(seed)){
+    if(missing(seed.R)) seed.R <- NULL
+    if(!is.null(seed)){
         if(!is.null(seed.R)){
             stop("`seed.R` and `seed` supplied. Use `seed.R` and not the deprecated seed. ")
         }
         message("seed is deprecated. Use `seed.R`.")
         seed.R <- seed
     }
-    if(!missing(seed)) set.seed(seed)
+    if(!is.null(seed.R)) set.seed(seed.R)
     
     if(missing(as.fun)) as.fun <- NULL
     as.fun <- NMdata:::NMdataDecideOption("as.fun",as.fun)
@@ -77,7 +80,7 @@ simPopEtas <- function(file,N,seed.R,pars,file.phi,as.fun,file.mod,seed,...){
     setcolorder(dt.etas,"ID")
     
     if(!is.null(file.phi)){
-        genPhiFile(data=dt.etas,file=file.phi)
+        genPhiFile(data=dt.etas,file=file.phi,overwrite=overwrite)
         return(invisible(as.fun(dt.etas)))
     }
     return(as.fun(dt.etas))

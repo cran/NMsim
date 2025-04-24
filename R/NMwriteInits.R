@@ -41,7 +41,7 @@
 #### Limitation: If using something like CL=(.1,4,15), two of those cannot be on the same line
 
 NMwriteInits <- function(file.mod,update=TRUE,file.ext=NULL,ext,values,newfile,...){
-
+    
     . <- NULL
     elemnum <- NULL
     elemnum_lower <- NULL
@@ -63,6 +63,7 @@ NMwriteInits <- function(file.mod,update=TRUE,file.ext=NULL,ext,values,newfile,.
     type.elem <- NULL
     value.elem_lower <- NULL
     value.elem_init <- NULL
+    value.elem_init_update <- NULL
     value.elem_upper <- NULL
     value.elem <- NULL
     value.elem_FIX <- NULL
@@ -130,7 +131,9 @@ NMwriteInits <- function(file.mod,update=TRUE,file.ext=NULL,ext,values,newfile,.
 
 ### the rest of the code is dependent on all of init, lower, and upper being available.
     cols.miss <- setdiff(outer(c("value.elem","elemnum"),c("init","lower","upper","FIX"),FUN=paste,sep="_"),colnames(inits.w))
-    inits.w[,(cols.miss):=NA_character_]
+    if(length(cols.miss)){
+        inits.w[,(cols.miss):=NA_character_]
+    }
     ##    inits.w[,fix:=ifelse(FIX=="1","FIX","")]
     inits.w[is.na(value.elem_FIX),value.elem_FIX:=""]
 
@@ -140,10 +143,13 @@ NMwriteInits <- function(file.mod,update=TRUE,file.ext=NULL,ext,values,newfile,.
     inits.w[,modified:=0]
 ### update from ext
     if(update){
-        
+        ####### Not updating "SAME"
         ext.new <- NMreadExt(file.ext,as.fun="data.table")
 
-        inits.w <- mergeCheck(inits.w[,-("value.elem_init")],ext.new[,.(par.type,i,j,value.elem_init=as.character(value))],by=c("par.type","i","j"),all.x=TRUE,fun.na.by=NULL,quiet=TRUE)
+        ## inits.w <- mergeCheck(inits.w[,-("value.elem_init")],ext.new[,.(par.type,i,j,value.elem_init=as.character(value))],by=c("par.type","i","j"),all.x=TRUE,fun.na.by=NULL,quiet=TRUE)
+        inits.w <- mergeCheck(inits.w,ext.new[,.(par.type,i,j,value.elem_init_update=as.character(value))],by=c("par.type","i","j"),all.x=TRUE,fun.na.by=NULL,quiet=TRUE)
+        inits.w[value.elem_init!="SAME",value.elem_init:=value.elem_init_update]
+        inits.w[,value.elem_init_update:=NULL]
     }
 
     if(FALSE){
@@ -225,7 +231,7 @@ NMwriteInits <- function(file.mod,update=TRUE,file.ext=NULL,ext,values,newfile,.
         }
         dt
     }
-
+    
     
     names.values <- names(values)
     if(length(values)){
@@ -241,7 +247,7 @@ NMwriteInits <- function(file.mod,update=TRUE,file.ext=NULL,ext,values,newfile,.
     inits.w[,row:=1:.N]
 
     
-    
+    ### SAME is gone in string.elem
     inits.w[,string.elem:=paste.ll.init.ul(value.elem_lower,value.elem_init,value.elem_upper,value.elem_FIX),by=row]
     inits.w[,elemnum:=min(elemnum_lower,elemnum_init,elemnum_upper,na.rm=TRUE),by=row]
 
@@ -295,7 +301,7 @@ NMwriteInits <- function(file.mod,update=TRUE,file.ext=NULL,ext,values,newfile,.
     lines.all.3[,text:=newtext]
     
 
-    lines.new <- readLines(file.mod)
+    lines.new <- readLines(file.mod,warn=FALSE)
 
     fun.update.ctl <- function(lines.old,section,dt.lines){
         text <- NULL

@@ -412,6 +412,7 @@ patterns <-
 ##' @param elements The elements object produced by `NMreadInits()`.
 ##' @import data.table
 ##' @keywords internal
+##' @noRd
 initsToExt <- function(elements){
 
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####

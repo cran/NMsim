@@ -1,7 +1,7 @@
 Package: NMsim
 Type: Package
 Title: Seamless 'Nonmem' Simulation Platform
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: c(person("Philip", "Delff", email = "philip@delff.dk",role = c("aut","cre")),
   person("Brian", "Reilly", email = "reilly.brian.m@gmail.com",role = c("ctb")),
   person("Sanaya","Shroff",email="sanaya.n.shroff@gmail.com",role = c("ctb")),
@@ -11,9 +11,9 @@ Description: A complete and seamless 'Nonmem' simulation interface within R. Tur
 License: MIT + file LICENSE
 RoxygenNote: 7.3.2
 Depends: R (>= 3.5.0)
-Imports: data.table, NMdata (>= 0.1.6), R.utils, MASS, fst, xfun
-Suggests: testthat, knitr, rmarkdown, ggplot2, patchwork, tracee,
-        tidyvpc, simpar, kableExtra, coveffectsplot, NMcalc
+Imports: data.table, NMdata (>= 0.1.7), R.utils, MASS, fst, xfun
+Suggests: testthat, knitr, rmarkdown, ggplot2, ggstance, patchwork,
+        tracee, tidyvpc, simpar, kableExtra, coveffectsplot, NMcalc
 Encoding: UTF-8
 Additional_repositories:
         https://mpn.metworx.com/snapshots/stable/2024-09-23
@@ -21,10 +21,10 @@ BugReports: https://github.com/NMautoverse/NMsim/issues
 Language: en-US
 URL: https://NMautoverse.github.io/NMsim/
 NeedsCompilation: no
-Packaged: 2025-03-13 02:04:50 UTC; philipde
+Packaged: 2025-04-24 11:34:16 UTC; philipde
 Author: Philip Delff [aut, cre],
   Brian Reilly [ctb],
   Sanaya Shroff [ctb],
   Boris Grinshpun [ctb]
 Repository: CRAN
-Date/Publication: 2025-03-13 03:30:02 UTC
+Date/Publication: 2025-04-24 12:00:02 UTC

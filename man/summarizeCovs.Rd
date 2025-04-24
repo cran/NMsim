@@ -2,41 +2,16 @@
 % Please edit documentation in R/summarizeCovs.R
 \name{summarizeCovs}
 \alias{summarizeCovs}
-\title{Summarize simulated exposures relative to reference subject}
+\title{Summarize simulated exposures relative to reference subject (see `forestSummarize()`)}
 \usage{
-summarizeCovs(data, funs.exposure, cols.value, cover.ci = 0.95, by, as.fun)
+summarizeCovs(...)
 }
 \arguments{
-\item{data}{Simulated data to process. This data.frame must
-contain must contain multiple columns, as defined by
-NMsim::expandCovs().}
-
-\item{funs.exposure}{A named list of functions to apply for
-derivation of exposure metrics.}
-
-\item{cols.value}{The default is to run exposure metrics based on
-the `PRED` column. Specify another or multiple columns to run
-the analysis on.}
-
-\item{cover.ci}{The coverage of the confidence intervals. Default
-is 0.95.}
-
-\item{by}{a character vector of names columns to perform all
-calculations by. This could be sampling subsets or analyte.}
-
-\item{as.fun}{The default is to return data as a
-`data.frame`. Pass a function (say `tibble::as_tibble`) in
-as.fun to convert to something else. If data.tables are
-wanted, use `as.fun="data.table"`. The default can be
-configured using `NMdataConf()`.}
+\item{...}{Passed to `forestSummarize()`}
 }
 \value{
 A data.frame
 }
 \description{
-Summarize simulated exposures relative to reference subject
-}
-\details{
-These columns are expected to be present, and differences within any of them will lead to separate summarizing (say for a s covariate value to be plotted):
-cc(model,type,pred.type,covvar,covlabel,covref,covval)
+Summarize simulated exposures relative to reference subject (see `forestSummarize()`)
 }
