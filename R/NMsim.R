@@ -54,9 +54,11 @@
 ##'     \code{table.vars} the default is to add two options,
 ##'     \code{NOAPPEND} and \code{NOPRINT}. You can modify that with
 ##'     \code{table.options}. Do not try to modify output filename -
-##'     \code{NMsim} takes care of that.
+##'     \code{NMsim} takes care of that. See `table.format` too.
 ##' @param table.format A format for `$TABLE`. Only used if
-##'     `table.vars` is provided.
+##'     `table.vars` is provided. Default is "s1PE16.9". NMsim needs a
+##'     high-resolution format. The Nonmem default "s1PE11.4" is
+##'     insufficient for simulation data sets of 1e5 rows or more.
 ##' @param carry.out Variables from input data that should be included
 ##'     in results. Default is to include everything. If working with
 ##'     large data sets, it may be wanted to provide a subset of the
@@ -476,7 +478,7 @@ NMsim <- function(file.mod,data,
                   name.sim,
                   table.vars,
                   table.options,
-                  table.format,
+                  table.format="s1PE16.9",
                   carry.out=TRUE,
                   method.sim=NMsim_default,
                   typical=FALSE,
@@ -758,7 +760,7 @@ NMsim <- function(file.mod,data,
         }
     }
 
-    if(missing(table.format)) table.format <- NULL
+    ## if(missing(table.format)) table.format <- NULL
     
 
 ### fast.tables is true if table.vars is provided and table.options are untouched.
@@ -1169,21 +1171,37 @@ NMsim <- function(file.mod,data,
                 warning(paste0("Not all variables in `carry.out` found in (all) data set(s):\n",paste(not.found,collapse=" ")))
             }
         }
-
+        
         dt.data.tmp <- unique(dt.models[,.(DATAROW,path.data)])
         dt.data.tmp[,tmprow:=.I]
-        dt.data.tmp[,{NMwriteData(data$data[[DATAROW]]
-                                 ,file=path.data
-                                 ,genText=T
-                                 ,formats.write=c("csv",format.data.complete)
-                                  ## if NMsim is not controlling $DATA, we don't know what can be dropped.
-                                  ,csv.trunc.as.nm=TRUE
-                                 ,script=script
-                                 ,quiet=TRUE)
-### returning a sctring because NMwriteData wit genText may return incompatible results
-                                 ##"OK"
-        },
-        by=tmprow]
+        
+        ## NMwriteData is run in lapply because genText=T may return
+        ## incompatible objects - do not run as dt[,NMwriteData(),by]
+        null <- lapply(split(dt.data.tmp,by="tmprow"),function(datrow){
+            with(datrow,NMwriteData(data$data[[DATAROW]]
+                       ,file=path.data
+                       ,genText=T
+                       ,formats.write=c("csv",format.data.complete)
+                        ## if NMsim is not controlling $DATA, we don't know what can be dropped.
+                        
+                                 ##,csv.trunc.as.nm=TRUE
+                       ,script=script
+                       ,quiet=TRUE)
+        )})
+        
+##         dt.data.tmp[,{NMwriteData(data$data[[DATAROW]]
+##                                  ,file=path.data
+##                                  ,genText=T
+##                                  ,formats.write=c("csv",format.data.complete)
+##                                   ## if NMsim is not controlling $DATA, we don't know what can be dropped.
+
+##                                  ##,csv.trunc.as.nm=TRUE
+##                                  ,script=script
+##                                  ,quiet=TRUE)
+## ### returning a sctring because NMwriteData wit genText may return incompatible results
+##                                  ##"OK"
+##         },
+##         by=tmprow]
     }
     
     

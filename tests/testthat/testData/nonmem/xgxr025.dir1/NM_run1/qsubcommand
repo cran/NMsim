@@ -1,0 +1,1 @@
+qsub -pe orte 64 -V -N xgxr025.mod -j y -cwd -b y /opt/nonmem/nm751/run/nmfe75 psn.mod psn.lst -background -parafile=/home/philip/wdirs/NMsim/tests/testthat/testData/nonmem/NMexec.pnm [nodes]=64
