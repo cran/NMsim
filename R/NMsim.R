@@ -197,8 +197,7 @@
 ##'     cluster. Waiting for them means that the results will be read
 ##'     when simulations are done. If not waiting, path(s) to `rds`
 ##'     files to read will be returned. Pass them through
-##'     `NMreadSim()` (which also supports waiting for the simulations
-##'     to finish).
+##'     `NMreadSim()`. Conveniently, NMreadSim() also takes the `wait` argument too, allowing flexibility to run Nonmem in the background, and then read the results, still waiting for Nonmem to finish.
 ##' @param method.execute Specify how to call Nonmem. Options are
 ##'     "psn" (PSN's execute), "nmsim" (an internal method similar to
 ##'     PSN's execute), and "direct" (just run Nonmem directly and
@@ -810,7 +809,7 @@ NMsim <- function(file.mod,data,
             }
             text.table <- paste(paste(table.vars,collapse=" "),paste(table.options,collapse=" "))
         } else {
-            if(!is.null(table.format)){
+            if(!missing(table.format)){
                 message("`table.format` is ignored. Only used when `table.vars` is supplied.")
             }
         }
@@ -1184,7 +1183,7 @@ NMsim <- function(file.mod,data,
                        ,formats.write=c("csv",format.data.complete)
                         ## if NMsim is not controlling $DATA, we don't know what can be dropped.
                         
-                                 ##,csv.trunc.as.nm=TRUE
+                        ,csv.trunc.as.nm=TRUE
                        ,script=script
                        ,quiet=TRUE)
         )})
@@ -1269,9 +1268,13 @@ NMsim <- function(file.mod,data,
         dt.models[,{
             data.this <- data$data[[DATAROW]]
             rewrite.data.section <- TRUE
-            nmtext <- NMgenText(data.this,file=relative_path(path.data,dirname(path.sim)),quiet=TRUE)
-            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["INPUT"],backup=FALSE,quiet=TRUE)
-            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["DATA"],backup=FALSE,quiet=TRUE)    
+            nmtext <- NMgenText(data.this,file=relative_path(path.data,dirname(path.sim)),
+                                col.flagn=col.flagn,
+                                quiet=TRUE)
+            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["INPUT"],
+                                       backup=FALSE,quiet=TRUE)
+            NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["DATA"],
+                                       backup=FALSE,quiet=TRUE)    
             
         },by=.(ROWMODEL)]
     }    
@@ -1557,7 +1560,7 @@ NMsim <- function(file.mod,data,
         }
 
         if(is.null(nmquiet)){
-            nmquiet <- !(dt.models[,.N]==1 && !do.pb && !quiet)
+            nmquiet <- !wait || !(dt.models[,.N]==1 && !do.pb && !quiet)
         }
         
         if(do.pb){

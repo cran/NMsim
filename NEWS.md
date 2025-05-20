@@ -1,3 +1,47 @@
+# NMsim 0.2.3
+
+## New features
+* `NMaddSamples()` gains a `by` argument. This makes `NMaddSamples()`
+  easy to use for generation of both nominal sampling schemes and
+  recreation of observed sampling schemes.
+
+* Streamlining of `NMsim_VarCov()` and
+  `samplePars()`. `NMsim_VarCov()` now always calls `samplePars()`
+  internally. `samplePars()` uses the `method` argument to switch
+  between `mvrnorm`(multivariate normal distribution) and `simpar`
+  (inverse Wishart distribution.
+
+* `NMsim_VarCov()` gains `method.sample` argument which is passed as
+  `method` to `samplePars()`. This means `NMsim_VarCov()` can be used
+  to simulated with parameter uncertainty using either `mvrnorm` or
+  `simpar`.
+
+Messages have been implemented in samplePars() to summarize number of
+truncations in case `mvrnorm` results in negative variance parameters.
+
+## Bugfixes
+NMsim_VarCov() sampling of OMEGA/SIGMA. Affects simulation with
+between-subject variability. Big thanks to Sanaya Shroff for reporting
+and fixing.
+
+## Other Improvements 
+* Improved defaults for whether to suppress Nonmem messages (`nmquiet`
+  argument). Particularly, when `NMsim` is not waiting on Nonmem runs,
+  it will by default suppress those messages. Basically, NMsim will
+  now by default only show Nonmem terminal messages if it is waiting,
+  and only one Nonmem model is executed. Notice, that `quiet=TRUE`
+  implies suppressing both `NMsim` and Nonmem messages and
+  `nmquiet=TRUE`.
+
+## Other Changes
+
+* The deprecated `addEVID2()` is kept as a snapshot of when
+  `NMsamples()` was introduced. The new `by` argument is not
+  compatible with the default behavior of the deprecated
+  `addEVID2()`. This is to ensure reproducibility of existing code on
+  the user side.
+
+
 # NMsim 0.2.2
 ## New features
 * `sampleCovs()` is a new function to conveniently sample

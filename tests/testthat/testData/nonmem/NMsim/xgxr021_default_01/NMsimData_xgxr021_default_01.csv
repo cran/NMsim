@@ -1,0 +1,5 @@
+ID,TIME,EVID,CMT,AMT,DV,MDV,sim
+1,0,1,1,300,.,1,default_01
+1,1,2,2,.,.,1,default_01
+1,6,2,2,.,.,1,default_01
+1,12,2,2,.,.,1,default_01

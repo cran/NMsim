@@ -1,1 +1,0 @@
-/opt/psn/execute -model_dir_name -nm_output=xml,ext,cov,cor,coi,phi -run_on_sge -sge_prepend_flags=-pe orte 64 -V -parafile=NMexec.pnm -nodes=64 xgxr025.mod
