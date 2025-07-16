@@ -4,9 +4,20 @@
 \alias{message_dt}
 \title{print a data.table}
 \usage{
-message_dt(dt)
+message_dt(x, ...)
+}
+\arguments{
+\item{x}{a data.table or something to be converted to a
+data.table.}
+
+\item{...}{passed to print.data.table.}
 }
 \description{
-Notice, only data.tables supported
+print a data.table
+}
+\details{
+defaults arguments to print.data.table (in addition to
+    `x=dt` which cannot be overwritten) are `class=FALSE`,
+    `print.keys=FALSE`, `row.names=FALSE`.
 }
 \keyword{internal}

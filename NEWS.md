@@ -1,3 +1,50 @@
+# NMsim 0.2.4
+
+## New features
+
+* `NMsim()`'s support for handling and control of initial values (the
+  `inits` argument) has been greatly improved. In recent versions a
+  new method for reading, updating, and writing the parameter
+  definitions in control streams has been implemented. This allows for
+  modification of this information and for fixing/unfixing
+  parameters. The downside is it comes with some limitations to
+  control stream syntax. With 0.2.4 those limitations are getting
+  rare. The original much simpler method is still available and
+  provides a robust alternative for many simulation purposes and is
+  kept as a fallback workaround.
+
+* `NMsim()`'s `init` argument supports `ext` and `inits.tab`
+  formats. These interfaces to specifying parameter values greatly
+  improves flexibility for programming, and for specifying multiple
+  new parameter sets for series of model runs.
+
+* `NMreadSim()` gains the `skip.missing` argument. In case some model
+  runs fail or haven't finished, this allows `NMreadSim()` to read
+  whatever it can and skip the ones missing.
+
+* Summary function included on NMsim simulation results. There is
+  still room for improvement - try it out with `summary()` on results
+  from `NMsim()` and `NMreadSim()`.
+
+## Bugfixes
+* `NMREP` is a data column that `NMsim()` automatically adds to count
+  subproblems when `subproblem` is used. This was not added when
+  simulating PREDPP (`$PRED`) models and when not providing a
+  simulaiton data set (VPC style). Thanks to Ahmed Abulfathi for
+  reporting.
+
+* In some cases `NMsim_NMWPRI()` in combination with `typical=TRUE`
+  would create wrong `$PRIOR` dimensions. Fixed.
+
+## Other improvements
+* `NMaddSamples()` only inserts `MDV` column if `MDV` is already present
+  in `data`.
+
+* `NMexec()` uses the `-maxlim=2` option when executing Nonmem. This
+  is implemented on both the internal execution method and when PSN's
+  execute is used. 
+
+
 # NMsim 0.2.3
 
 ## New features

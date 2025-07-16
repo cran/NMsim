@@ -4,6 +4,8 @@
 ##'     FALSE and more than one model is being simulated. The progress
 ##'     tracking is based on the number of models completed, not the
 ##'     status of the individual models.
+##' @import data.table
+##' @importFrom xfun relative_path
 ##' @keywords internal
 
 NMreadSimModTab <- function(x,check.time=FALSE,dir.sims,wait=FALSE,skip.missing=FALSE,quiet=FALSE,progress,read.fst=NULL,fast.tables=NULL,carry.out=NULL,as.fun){
@@ -69,7 +71,7 @@ NMreadSimModTab <- function(x,check.time=FALSE,dir.sims,wait=FALSE,skip.missing=
         } else {
             dirSims <- dir.sims           
         }
-        file.path(dirSims,relative_path(path.sim.lst,dirSims))
+        simplePath(file.path(dirSims,relative_path(path.sim.lst,dirSims)))
     },
     ## by=.(ROWMODEL2)
     by=.(ROWTMP)
@@ -150,6 +152,7 @@ NMreadSimModTabOne <- function(modtab,check.time=FALSE,dir.sims,wait=FALSE,quiet
     
 ### will need a function to apply transformations if applicable
     wrap.trans <- function(dt,...){
+        
         funs <- list(...)
         for(name.fun in names(funs)){
             dt[,(name.fun):=funs[[name.fun]](get(name.fun))]
@@ -166,17 +169,17 @@ NMreadSimModTabOne <- function(modtab,check.time=FALSE,dir.sims,wait=FALSE,quiet
     
     
 ### if we have an fst, read it and return results
-if(is.null(read.fst)){
-    if(check.time){
-        read.fst <- rdstab[,!is.null(path.results.read) &&
-                            file.exists(path.results.read) &&
-                            file.mtime(path.results.read)>file.mtime(path.rds.read)
-                           ]
-    } else {
-        read.fst <- rdstab[,!is.null(path.results.read) &&
-                            file.exists(path.results.read)]
+    if(is.null(read.fst)){
+        if(check.time){
+            read.fst <- rdstab[,!is.null(path.results.read) &&
+                                file.exists(path.results.read) &&
+                                file.mtime(path.results.read)>file.mtime(path.rds.read)
+                               ]
+        } else {
+            read.fst <- rdstab[,!is.null(path.results.read) &&
+                                file.exists(path.results.read)]
+        }
     }
-}
 
     
     ## fsts
@@ -230,17 +233,25 @@ if(is.null(read.fst)){
                 close(pb)
                 ## message("")
             }
+            lsts.found <- modtab[,file.exists(path.lst.read)]
+            done <- all(lsts.found)            
         } else {
             if(skip.missing){
                 message(sprintf("%d/%d model runs found",sum(lsts.found),length(lsts.found)))
             } else {
-                lapply(modtab[lsts.found==FALSE,path.lst.read],function(x) message(sprintf("Not found: %s",x)))
+                lapply(modtab[!file.exists(path.lst.read),path.lst.read],function(x) message(sprintf("Not found: %s",x)))
                 stop("Not all model runs completed. Look in messages for which ones. If you want to go ahead and read the ones that are found, use skip.missing=`TRUE`.")
             }
         }
     }
-
-
+    
+    if(sum(lsts.found)==0) {
+        message("No results found")
+        return(NULL)
+    }
+    if(skip.missing){
+        modtab <- modtab[file.exists(path.lst.read)]
+    }
     ## if(!quiet) message("Reading Nonmem results")
     
     if("ROWMODEL2" %in%colnames(modtab)) modtab[,ROWMODEL:=.GRP,by=.(ROWMODEL,ROWMODEL2)]
@@ -314,18 +325,22 @@ if(is.null(read.fst)){
                     reportFailedRun(lst=path.lst.read)
                 }
                 this.res <- NULL
-            }
 
-            if(!is.null(.SD$funs.transform)){
-                this.funs <- .SD[1,funs.transform][[1]]
-                if(!is.null(this.funs)){
-                    this.res <- do.call(wrap.trans,c(list(dt=this.res),this.funs))
+            } else {
+
+                if(!is.null(.SD$funs.transform)){
+                    this.funs <- .SD[1,funs.transform][[1]]
+                    if(!is.null(this.funs)){
+                        
+                        this.res <- do.call(wrap.trans,c(list(dt=this.res),this.funs))
+                    }
                 }
+                
+                ## we are not keeping col.row. Just used it to make sure to combine right.
+                
+                if(col.row%in%colnames(this.res)) this.res[,(col.row):=NULL]
+
             }
-            
-            ## we are not keeping col.row. Just used it to make sure to combine right.
-            
-            if(col.row%in%colnames(this.res)) this.res[,(col.row):=NULL]
             
             this.res
         },by=bycols]

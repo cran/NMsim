@@ -96,17 +96,12 @@
 ##'
 ##' In case \code{method.sim=NMsim_EBE}, seeds are not used.
 ##'
-##' @param order.columns reorder columns by calling
-##'     \code{NMdata::NMorderColumns} before saving dataset and
-##'     running simulations? Default is TRUE.
 ##' @param script The path to the script where this is run. For
 ##'     stamping of dataset so results can be traced back to code.
-##' @param args.psn.execute A charachter string that will be passed as
-##'     arguments PSN's `execute`.
 ##' @param text.sim A character string to be pasted into
 ##'     $SIMULATION. This must not contain seed or SUBPROBLEM which
-##'     are handled separately. Default is to include "ONLYSIM". You
-##'     cannot avoid that using `text.sim`. Instead, you can use
+##'     is handled separately. Default is to include "ONLYSIM". You
+##'     cannot avoid that using `text.sim`. If needed, you can use
 ##'     `onlysim=FALSE` which will be passed to `NMsim_default()`.
 ##' @param method.sim A function (not quoted) that creates the
 ##'     simulation control stream and other necessary files for a
@@ -127,30 +122,30 @@
 ##'     estimation.
 ##' \itemize{
 ##'
-##' \item{`method="nmsim"`}, all other
-##'     arguments are passed to `NMwriteInits`. This is a flexible
-##'     method that allows for modification of the parameter values
-##'     and is expected to be the default method in the
-##'     future. Example which will update the parameter values based
-##'     on the available estimate, but with `THETA(2)=1.3`:
-##'     `inits=list(method="nmsim","THETA(2)"=list(init=1.3))`. See
-##'     `?NMwriteInits` too.
+##' \item{`method="nmsim"`} (default) A highly flexible internal
+##'      method, allows for modification of the parameter values. All
+##'      other elements in `inits` are passed to
+##'      `NMwriteInits()`. Example where `THETA(2)` is customized:
+##'      `inits=list("THETA(2)"=list(init=1.3))`. See `?NMwriteInits`
+##'      too.
 ##' 
 ##' \item{`method="psn"`}
-##'     uses PSN's "update_inits". Requires a functioning PSN
+##'     Uses PSN's "update_inits". Requires a functioning PSN
 ##'     installation and possibly that \code{dir.psn} is correctly
 ##'     set. The advantages of this method are that it keeps comments
 ##'     in the control stream and that it is a method known to many.
 ##'
-##' \item{`method="nmsim"`}
-##'  Uses a simple internal method to update the parameter values
-##' based on the ext file.  The advantages of "nmsim" are it does not
-##' require PSN, and that it does not rely on code-interpretation for generation of simulation control streams. "nmsim" fixes the whole
-##' OMEGA and SIGMA matrices as single blocks making the $OMEGA and
-##' $SIGMA sections of the control streams less easy to read. On the
-##' other hand, this method is robust because it avoids any
-##' interpretation of BLOCK structure or other code in the control
-##' streams.
+##' \item{`method="simple"`} Uses a simple internal method to
+##'  update the parameter values based on the ext file.  The
+##'  advantages are it does not require PSN, and that it does not rely
+##'  on code-interpretation for generation of simulation control
+##'  streams. "simple" fixes the whole OMEGA and SIGMA matrices
+##'  as single blocks which is robust because it avoids any
+##'  interpretation of BLOCK structure or other code in the control
+##'  streams. The downside is it strips all comments, and generally
+##'  makes the $OMEGA and $SIGMA sections of the simulation control
+##'  streams less easy to read. "simple" can be used as a
+##'  fallback in case of any issues with `method="nmsim"`.
 ##'
 ##' \item{`method="none"`} Do nothing. This is useful if the model to simulate
 ##' has not been estimated but parameter values have been manually put
@@ -197,7 +192,13 @@
 ##'     cluster. Waiting for them means that the results will be read
 ##'     when simulations are done. If not waiting, path(s) to `rds`
 ##'     files to read will be returned. Pass them through
-##'     `NMreadSim()`. Conveniently, NMreadSim() also takes the `wait` argument too, allowing flexibility to run Nonmem in the background, and then read the results, still waiting for Nonmem to finish.
+##'     `NMreadSim()`. Conveniently, NMreadSim() also takes the `wait`
+##'     argument too, allowing flexibility to run Nonmem in the
+##'     background, and then read the results, still waiting for
+##'     Nonmem to finish.
+##' @param order.columns reorder columns by calling
+##'     \code{NMdata::NMorderColumns} before saving dataset and
+##'     running simulations? Default is TRUE.
 ##' @param method.execute Specify how to call Nonmem. Options are
 ##'     "psn" (PSN's execute), "nmsim" (an internal method similar to
 ##'     PSN's execute), and "direct" (just run Nonmem directly and
@@ -208,7 +209,15 @@
 ##'     in the system search path. So as long as you know where your
 ##'     Nonmem executable is, "nmsim" is recommended. The default is
 ##'     "nmsim" if path.nonmem is specified, and "psn" if not.
-##' 
+##' @param nmfe.options additional options that will be passed to
+##'     nmfe. It is only used when path.nonmem is available (directly
+##'     or using `NMdataConf()`). Default is "-maxlim=2" For PSN, see
+##'     `args.psn.execute`.
+##' @param args.psn.execute A charachter string that will be passed as
+##'     arguments PSN's `execute`. The default is
+##'     "-model_dir_name -nm_output=coi,cor,cov,ext,phi,shk,xml -nmfe_options=\"-maxlim=2\""
+##'     in addition to the "-clean" based on the `clean`
+##'     argument. Notice, if `path.nonmem` is provided, the default is not to use PSN.
 ##' @param path.nonmem The path to the Nonmem executable to use. The
 ##'     could be something like "/usr/local/NONMEM/run/nmfe75" (which
 ##'     is a made up example). No default is available. You should be
@@ -299,77 +308,8 @@
 ##'     you need to merge by a row identifier. You would do
 ##'     `args.NMscanData=list(col.row="ROW")` to merge by a column
 ##'     called `ROW`. This is only used in rare cases.
-##' @param system.type A charachter string, either \"windows\" or
-##'     \"linux\" - case insensitive. Windows is only experimentally
-##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
-##' @param format.data.complete For development purposes - users do
-##'     not need this argument. Controls what format the complete
-##'     input data set is saved in.  Possible values are `rds`
-##'     (default), `fst` (experimental) and `csv`. `fst` may be faster
-##'     and use less disk space but factor levels may be lost from
-##'     input data to output data. `csv` will also lead to loss of
-##'     additional information such as factor levels.
-##' @param ... Additional arguments passed to \code{method.sim}.
-##' @param modify.model Deprecated. Use modify instead.
-##' @param list.sections Deprecated. Use modify instead.
-##' 
-##' @param auto.dv Add a column called `DV` to input data sets if a
-##'     column of that name is not found? Nonmem is generally
-##'     dependent on a `DV` column in input data but this is typically
-##'     uninformative in simulation data sets and hence easily
-##'     forgotten when generating simulation data sets. If
-##'     \code{auto.dv=TRUE} and no `DV` column is found, `DV=NA` will
-##'     be added. In this case (`auto.dv=TRUE` and no `DV` column
-##'     found) a `MDV=1` column will also be added if none found.
-##' @param file.res Path to an rds file that will contain a table of
-##'     the simulated models and other metadata. This is needed for
-##'     subsequently retrieving all the results using
-##'     `NMreadSim()`. The default is to create a file called
-##'     `NMsim_..._MetaData.rds` under the \code{dir.res} directory
-##'     where ... is based on the model name. However, if multiple
-##'     models (\code{file.mod}) are simulated, this will result in
-##'     multiple rds files. Specifying a path ensures that one rds
-##'     file containing information about all simulated models will be
-##'     created. Notice if \code{file.res} is supplied, \code{dir.res}
-##'     is not used.
-##' @param clean The degree of cleaning (file removal) to do after
-##'     Nonmem execution. If `method.execute=="psn"`, this is passed
-##'     to PSN's `execute`. If `method.execute=="nmsim"` a similar
-##'     behavior is applied, even though not as granular. NMsim's
-##'     internal method only distinguishes between 0 (no cleaning),
-##'     any integer 1-4 (default, quite a bit of cleaning) and 5
-##'     (remove temporary dir completely).
-##' @param quiet If TRUE, messages from what is going on will be
-##'     suppressed.
-##' @param nmquiet Silent console messages from Nonmem? The default
-##'     behaviour depends. It is FALSE if there is only one model to
-##'     execute and `progress=FALSE`.
-##' @param progress Track progress? Default is `TRUE` if `quiet` is
-##'     FALSE and more than one model is being simulated. The progress
-##'     tracking is based on the number of models completed, not the
-##'     status of the individual models.
-##' @param check.mod Check the provided control streams for contents
-##'     that may cause issues for simulation. Default is `TRUE`, and
-##'     it is only recommended to disable this if you are fully aware
-##'     of such a feature of your control stream, you know how it
-##'     impacts simulation, and you want to get rid of warnings.
-##' @param as.fun The default is to return data as a data.frame. Pass
-##'     a function (say `tibble::as_tibble`) in as.fun to convert to
-##'     something else. If data.tables are wanted, use
-##'     as.fun="data.table". The default can be configured using
-##'     NMdataConf.
-##' @param args.NMscanData If \code{table.options} is used, NMsim
-##'     turns to `NMdata::NMscanData()` for a general method to read
-##'     the output tables. Use `args.NMscanData` to pass additional
-##'     arguments (in a list) to that function if you want the results
-##'     to be read in a specific way. This can be if the model for
-##'     some reason drops rows, and you need to merge by a row
-##'     identifier. You would do `args.NMscanData=list(col.row="ROW")`
-##'     to merge by a column called `ROW`. This is only used in rare
-##'     cases. Better just stick to NMsim's optimized default
-##'     `table.options` and related methods for reading results.
-##' @param system.type A charachter string, either \"windows\" or
-##'     \"linux\" - case insensitive. Windows is only experimentally
+##' @param system.type A charachter string, either "windows" or
+##'     "linux" - case insensitive. Windows is only experimentally
 ##'     supported. Default is to use \code{Sys.info()[["sysname"]]}.
 ##' @param format.data.complete For development purposes - users do
 ##'     not need this argument. Controls what format the complete
@@ -386,7 +326,7 @@
 ##'     from the estimated model before running the simulation. NMsim
 ##'     can do this with a native function or use PSN to do it - or
 ##'     the step can be skipped to not update the values.
-##' @param file.ext Depecated. Use
+##' @param file.ext Deprecated. Use
 ##'     `inits=list(file.ext="path/to/file.ext")` instead. Optionally
 ##'     provide a parameter estimate file from Nonmem. This is
 ##'     normally not needed since `NMsim` will by default use the ext
@@ -457,8 +397,6 @@
 ##' than `NMsim`. For simulation with parameter variability based on
 ##' bootstrap results, use \code{NMsim_default}.
 ##'
-##' \item \code{NMsim_typical} Deprecated. Use \code{typical=TRUE} instead. 
-##'
 ##' }
 ##' @import NMdata
 ##' @import data.table
@@ -466,7 +404,6 @@
 ##' @importFrom stats runif
 ##' @importFrom xfun relative_path
 ##' @export
-
 
 
 NMsim <- function(file.mod,data,
@@ -493,10 +430,9 @@ NMsim <- function(file.mod,data,
                   transform=NULL,
                   order.columns=TRUE,
                   method.execute,
+                  nmfe.options,
                   nmrep,
                   col.flagn=FALSE,
-                  sim.dir.from.scratch=TRUE,
-                  create.dirs=TRUE,
                   dir.psn,
                   args.psn.execute,
                   args.NMscanData,
@@ -509,6 +445,9 @@ NMsim <- function(file.mod,data,
                   text.sim="",
                   auto.dv=TRUE,
                   clean,
+                  sim.dir.from.scratch=TRUE,
+                  create.dirs=TRUE,
+
                   quiet=FALSE,
                   nmquiet,
                   progress,
@@ -524,6 +463,7 @@ NMsim <- function(file.mod,data,
                   list.sections,
                   ...
                   ){
+
 #### Section start: Dummy variables, only not to get NOTE's in pacakge checks ####
     
     . <- NULL
@@ -626,15 +566,13 @@ NMsim <- function(file.mod,data,
         if(any(names(args.NMscanData)=="")) stop("All elements in args.NMscanData must be named.")
     }
     args.NMscanData.default <- list(merge.by.row=FALSE,col.model=NULL)
-    ## moving this from NMscanData to be handled by NMreadSim or a sub-function hereof
-    ##,col.model="model.sim")
     
     if(missing(progress)) progress <- NULL
     
     if(missing(dir.psn)) dir.psn <- NULL
     if(missing(path.nonmem)) path.nonmem <- NULL
     if(missing(method.execute)) method.execute <- NULL
-    ## NMsimConf <- NMsimTestConf(path.nonmem=path.nonmem,dir.psn=dir.psn,method.execute=method.execute,must.work=execute)
+    if(missing(nmfe.options)) nmfe.options <- NULL
     NMsimConf <- NMsimTestConf(path.nonmem=path.nonmem,dir.psn=dir.psn,method.execute=method.execute,must.work=FALSE)
 
     
@@ -763,27 +701,36 @@ NMsim <- function(file.mod,data,
     
 
 ### fast.tables is true if table.vars is provided and table.options are untouched.
+    cols.table.add <- c()
+    if(nmrep){
+        
+        ## if(subproblems>0 &&
+        ##    !is.null(table.vars)
+        ## this has not been resolved in NMdata
+        ## && packageVersion("NMdata")<"1.1.7"
+        ## ){
 
-    if(subproblems>0 &&
-       !is.null(table.vars)
-       ## this has not been resolved in NMdata
-       ## && packageVersion("NMdata")<"1.1.7"
-       ){
-        
-        tabv2 <- paste(table.vars,collapse=" ")
+        if(is.null(table.vars)){
+            cols.table.add <- c(cols.table.add,"NMREP")
+        } else {
+            tabv2 <- paste(table.vars,collapse=" ")
 ### don't add col.row here. It is model dependent and will be added when writing $TABLE
-        ##tabv2 <- paste(col.row,tabv2)
+            ##tabv2 <- paste(col.row,tabv2)
 ### NMREP can be added here because it is not used if $TABLE isn't overwritten
-        if(nmrep) tabv2 <- paste(tabv2,"NMREP")
-        tabv2 <- gsub(" +"," ",tabv2 )
-        table.vars <- strsplit(tabv2," ")[[1]]
-        table.vars <- unique(table.vars)
-        
+            ## if(nmrep) {
+            tabv2 <- paste(tabv2,"NMREP")
+            ## }
+            tabv2 <- gsub(" +"," ",tabv2 )
+            table.vars <- strsplit(tabv2," ")[[1]]
+            table.vars <- unique(table.vars)
+        }
 
 ### Create NMREP in $ERROR. Adding 1 to start counting at 1.
         
         modify <- c(modify,
-                          list(ERROR=add("NMREP=IREP")))
+                    list(PRED=add("NMREP=IREP")),
+                    list(PK=add("NMREP=IREP"))
+                    )
     }
     
     if(!is.null(table.vars)){
@@ -1144,8 +1091,12 @@ NMsim <- function(file.mod,data,
 
         ## dt.models[,NMwriteInits(file.mod=file.mod,newfile=path.sim,file.ext=file.ext,),by=.(ROWMODEL)]
         dt.models[,{
-            args.inits <- append(list(file.mod=file.mod,newfile=path.sim,file.ext=file.ext),
-                                 inits[setdiff(names(inits),"method")])
+            
+            args.inits <- append(
+                list(file.mod=file.mod,newfile=path.sim,file.ext=file.ext)
+               ,
+                inits[setdiff(names(inits),"method")]
+            )
             do.call(NMwriteInits,args.inits)
         },by=.(ROWMODEL)]
     }
@@ -1178,34 +1129,19 @@ NMsim <- function(file.mod,data,
         ## incompatible objects - do not run as dt[,NMwriteData(),by]
         null <- lapply(split(dt.data.tmp,by="tmprow"),function(datrow){
             with(datrow,NMwriteData(data$data[[DATAROW]]
-                       ,file=path.data
-                       ,genText=T
-                       ,formats.write=c("csv",format.data.complete)
-                        ## if NMsim is not controlling $DATA, we don't know what can be dropped.
-                        
-                        ,csv.trunc.as.nm=TRUE
-                       ,script=script
-                       ,quiet=TRUE)
-        )})
+                                   ,file=path.data
+                                   ,genText=T
+                                   ,formats.write=c("csv",format.data.complete)
+                                    ## if NMsim is not controlling $DATA, we don't know what can be dropped.
+                                    
+                                   ,csv.trunc.as.nm=TRUE
+                                   ,script=script
+                                   ,quiet=TRUE)
+                 )})
         
-##         dt.data.tmp[,{NMwriteData(data$data[[DATAROW]]
-##                                  ,file=path.data
-##                                  ,genText=T
-##                                  ,formats.write=c("csv",format.data.complete)
-##                                   ## if NMsim is not controlling $DATA, we don't know what can be dropped.
 
-##                                  ##,csv.trunc.as.nm=TRUE
-##                                  ,script=script
-##                                  ,quiet=TRUE)
-## ### returning a sctring because NMwriteData wit genText may return incompatible results
-##                                  ##"OK"
-##         },
-##         by=tmprow]
     }
     
-    
-
-
 
 
     if(is.null(data)){
@@ -1224,7 +1160,8 @@ NMsim <- function(file.mod,data,
             dt[,col.row:=col.row.this]
             
             ## if(!col.row %in% colnames(data.this)){
-            data.this[,(col.row.this):=(1:.N)/1000]
+            ## data.this[,(col.row.this):=(1:.N)/1000]
+            data.this[,(col.row.this):=(1:.N)]
             setcolorder(data.this,c(colnames(data.this)[1],col.row.this))
             
             section.input <- NMreadSection(file.mod,section="input",keep.name=FALSE)
@@ -1240,9 +1177,6 @@ NMsim <- function(file.mod,data,
             
             
 ### save data and replace $input and $data
-#### multiple todo: save only for each unique path.data
-            
-            ## format.data.complete <- "fst"
             
             nmtext <- NMwriteData(data.this,file=unique(dt$path.data),
                                   args.NMgenText=list(dir.data=".",col.flagn=col.flagn)
@@ -1271,6 +1205,7 @@ NMsim <- function(file.mod,data,
             nmtext <- NMgenText(data.this,file=relative_path(path.data,dirname(path.sim)),
                                 col.flagn=col.flagn,
                                 quiet=TRUE)
+            
             NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["INPUT"],
                                        backup=FALSE,quiet=TRUE)
             NMdata:::NMwriteSectionOne(file0=path.sim,list.sections = nmtext["DATA"],
@@ -1278,7 +1213,21 @@ NMsim <- function(file.mod,data,
             
         },by=.(ROWMODEL)]
     }    
+
+
     
+    dt.models[,{### update .msf
+        newlines <- NMupdateFn(x=path.sim,
+                               section="EST",
+                               model=basename(fn.sim),
+                               fnext=".msf",
+                               add.section.text=NULL,
+                               par.file="MSFO",
+                               text.section=NULL,
+                               quiet=TRUE)
+        writeTextFile(newlines,file=path.sim)
+    },by=.(ROWMODEL)
+    ]
 
 #### Section start: Output tables ####
     
@@ -1311,7 +1260,9 @@ NMsim <- function(file.mod,data,
         ## if(exists("add.var.table")){
         ##     lines.tables.new <- gsub("\\$TABLE",paste("$TABLE",add.var.table),lines.tables.new)
         ## }
-        lines.tables.new <- gsub("\\$TABLE",paste("$TABLE",col.row),lines.tables.new)
+        lines.tables.new <- gsub("\\$TABLE",
+                                 sub(" +$","",paste("$TABLE",col.row,cols.table.add)),
+                                 lines.tables.new)
         ## if no $TABLE found already, just put it last
         if(length(lines.tables)){
             location <- "replace"
@@ -1481,8 +1432,8 @@ NMsim <- function(file.mod,data,
     if(missing(sizes)) sizes <- NULL
     if(!is.null(sizes)){
         dt.models[,{
-            args.sizes <- append(list(file.mod=path.sim,newfile=path.sim,write=TRUE,warn=FALSE),sizes)
-            do.call(NMupdateSizes,args.sizes)
+            args.sizes <- append(list(file.mod=path.sim,newfile=path.sim,write=TRUE),sizes)
+            do.call(NMwriteSizes,args.sizes)
         },by=.(ROWMODEL)]
     }
 
@@ -1560,7 +1511,8 @@ NMsim <- function(file.mod,data,
         }
 
         if(is.null(nmquiet)){
-            nmquiet <- !wait || !(dt.models[,.N]==1 && !do.pb && !quiet)
+            ## easier to do ! (talk)
+            nmquiet <- ! (wait && dt.models[,.N]==1 && !do.pb && !quiet && subproblems<=1 )
         }
         
         if(do.pb){
@@ -1595,22 +1547,23 @@ NMsim <- function(file.mod,data,
             
             
             obj.exec <- NMexec(files=path.sim,sge=sge,nc=nc,wait=wait.exec,
-                   args.psn.execute=args.psn.execute,nmquiet=nmquiet,quiet=TRUE,
-                   method.execute=NMsimConf$method.execute,
-                   path.nonmem=NMsimConf$path.nonmem,
-                   dir.psn=NMsimConf$dir.psn,
-                   system.type=NMsimConf$system.type,
-                   files.needed=files.needed.n,
-                   input.archive=input.archive,
-                   dir.data="..",
-                   clean=clean,
-                   backup=FALSE)
+                               args.psn.execute=args.psn.execute,nmquiet=nmquiet,quiet=TRUE,
+                               method.execute=NMsimConf$method.execute,
+                               path.nonmem=NMsimConf$path.nonmem,
+                               dir.psn=NMsimConf$dir.psn,
+                               system.type=NMsimConf$system.type,
+                               files.needed=files.needed.n,
+                               input.archive=input.archive,
+                               dir.data="..",
+                               clean=clean,
+                               nmfe.options=nmfe.options,
+                               backup=FALSE)
             
             ## simres.n <- list(lst=path.sim.lst)
             ## simres.n
             if(do.pb){
                 setTxtProgressBar(pb, .I)
-            
+                
             }
             
             obj.exec$mod.exec
@@ -1619,9 +1572,8 @@ NMsim <- function(file.mod,data,
             close(pb)
         }
     }
-
+    
 ###  Section end: Execute
-
     
     dt.models.save <- split(dt.models,by="path.rds")
     addClass(dt.models,"NMsimModTab")
