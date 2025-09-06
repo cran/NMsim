@@ -14,6 +14,7 @@ NMwriteSectionOne <- function(file0,lines,section,location=c("replace","before",
 
     location <- match.arg(location)
 
+    
     if(missing(file0)) file0 <- NULL
     
     if(!is.null(file0)){
@@ -45,8 +46,8 @@ NMwriteSectionOne <- function(file0,lines,section,location=c("replace","before",
     ## put this part in a function to be sequentially applied for all elements in list.
     replaceOnePart <- function(lines,section,newlines,quiet=FALSE){
         
-        if(!quiet && write) message(paste("Writing",newfile))
-        
+        if(!quiet && write && !is.null(newfile) ) message(paste("Writing",newfile))
+
         ## make sure section is capital and does not start with $.
         section <- gsub(" ","",section)
         section <- sub("^\\$","",section)
@@ -97,9 +98,11 @@ NMwriteSectionOne <- function(file0,lines,section,location=c("replace","before",
             } else if(max.dl==nlines){
                 all.lines <- c(lines[1:(min.dl-1)],newlines)
             } else {
-                all.lines <- c(lines[1:(min.dl-1)],
-                               newlines,
-                               lines[(max.dl+1):nlines])
+                all.lines <- c(
+                    lines[1:(min.dl-1)],
+                    newlines,
+                    lines[(max.dl+1):nlines]
+                )
             }
         }
         if(location=="before"){

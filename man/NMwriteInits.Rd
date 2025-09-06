@@ -6,6 +6,7 @@
 \usage{
 NMwriteInits(
   file.mod,
+  lines,
   update = TRUE,
   file.ext = NULL,
   ext,
@@ -17,6 +18,9 @@ NMwriteInits(
 }
 \arguments{
 \item{file.mod}{Path to control stream.}
+
+\item{lines}{Control stream as character vector. Use either
+`file.mod` or `lines`, not both.}
 
 \item{update}{If `TRUE` (default), the parameter values are
 updated based on the `.ext` file. The path to the `.ext` file
@@ -67,6 +71,13 @@ parameters. It cannot insert new parameters.
 \item If using something like CL=(.1,4,15) in control stream, two
 of those cannot be on the same line.
 }
+
+In Nonmem an entire block is either fixed or not.
+`NMwriteInits()` fixes/unfixes the entire block based on the
+top-left element in the block. This means, if
+OMEGA(2,2)-OMEGA(3,3) is a block, the `FIX` status of OMEGA(2,2)
+determines whether the block is fixed. `FIX` of all other elements
+in the block has no effect.
 }
 \examples{
 \dontrun{

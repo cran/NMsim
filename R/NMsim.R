@@ -1,4 +1,4 @@
-##' Simulate from an estimated Nonmem model
+##' Simulate from a Nonmem model
 ##'
 ##' Supply a data set and an estimation input control stream, and
 ##' NMsim can create neccesary files (control stream, data files), run
@@ -99,8 +99,8 @@
 ##' @param script The path to the script where this is run. For
 ##'     stamping of dataset so results can be traced back to code.
 ##' @param text.sim A character string to be pasted into
-##'     $SIMULATION. This must not contain seed or SUBPROBLEM which
-##'     is handled separately. Default is to include "ONLYSIM". You
+##'     $SIMULATION. This must not contain seed or SUBPROBLEM which is
+##'     handled separately. Default is to include "ONLYSIM". You
 ##'     cannot avoid that using `text.sim`. If needed, you can use
 ##'     `onlysim=FALSE` which will be passed to `NMsim_default()`.
 ##' @param method.sim A function (not quoted) that creates the
@@ -113,14 +113,30 @@
 ##'     methods.
 ##' @param typical Run with all ETAs fixed to zero? Technically all
 ##'     ETAs=0 is obtained by replacing \code{$OMEGA} by a zero
-##'     matrix. Default is `FALSE`.
-##' @param inits Control the parameter values. `inits` is a list. The
-##'     `method` element controls which method is used to do this, and
-##'     this corresponds to the old `method.update.inits` argument. If
-##'     using the new `method=nmsim` you can specify parameter
-##'     values, fix/unfix them, and edit lower and upper limits for
-##'     estimation.
-##' \itemize{
+##'     matrix. Default is `FALSE`. Instead of a logical `TRUE/FALSE`,
+##'     a character vector can be used to specify what parameter types
+##'     to set to zero and fix. Examples:
+##'     `typical=c("OMEGA","SIGMA")`,
+##'     `typical=c("THETAPV","OMEGA","OMEGAP","OMEGAPD")`. In fact, if
+##'     `typical=TRUE`, both `$OMEGA` itself and - if found - their
+##'     priors will be fixed at zero.
+##' @param inits Control the parameter values. `inits` is a list and
+##'     contains (any of) the `method` used to edit the parameters,
+##'     and what modifications to do.
+##'
+##' Using the defaul `method`, all other list elements are passed as
+##' arguments to `NMwriteInits()`. Please see `?NMwriteInits` and the
+##' examples on the NMsim website for how to edit the parameter
+##' values:
+##' \url{https://nmautoverse.github.io/NMsim/articles/NMsim-modify-model.html}
+##'
+##' The `method` element controls which method is used to do this, and
+##'     this corresponds to the old `method.update.inits`
+##'     argument. Normally, the user should not need to deal with this
+##'     as the default `nmsim` method is very flexible and
+##'     powerful. If using the new `method=nmsim` you can specify
+##'     parameter values, fix/unfix them, and edit lower and upper
+##'     limits for estimation.  \itemize{
 ##'
 ##' \item{`method="nmsim"`} (default) A highly flexible internal
 ##'      method, allows for modification of the parameter values. All
@@ -153,15 +169,14 @@
 ##' }
 ##' 
 ##' See also `file.ext` which can now be handled by `inits` too. This
-##' change collects the update of the "initial"
-##' parameter values into one interface rather than multiple
-##' arguments.
-##' @param modify Named list of additional control stream
-##'     section edits. Note, these can be functions that define how to
-##'     edit sections. This is an advanced feature which is not needed
-##'     to run most simulations. It is however powerful for some types
-##'     of analyses, like modifying parameter values. See vignettes
-##'     for further information.
+##' change collects the update of the "initial" parameter values into
+##' one interface rather than multiple arguments.
+##' @param modify Named list of additional control stream section
+##'     edits. Note, these can be functions that define how to edit
+##'     sections. This is an advanced feature which is not needed to
+##'     run most simulations. It is however powerful for some types of
+##'     analyses, like modifying parameter values. See vignettes for
+##'     further information.
 ##' @param filters Edit data filters (`IGNORE`/`ACCEPT` statements)
 ##'     before running model. This should normally only be used if no
 ##'     data set is provided. It can be useful if simulating for a VPC
@@ -217,7 +232,8 @@
 ##'     arguments PSN's `execute`. The default is
 ##'     "-model_dir_name -nm_output=coi,cor,cov,ext,phi,shk,xml -nmfe_options=\"-maxlim=2\""
 ##'     in addition to the "-clean" based on the `clean`
-##'     argument. Notice, if `path.nonmem` is provided, the default is not to use PSN.
+##'     argument. Notice, if `path.nonmem` is provided, the default is
+##'     not to use PSN.
 ##' @param path.nonmem The path to the Nonmem executable to use. The
 ##'     could be something like "/usr/local/NONMEM/run/nmfe75" (which
 ##'     is a made up example). No default is available. You should be
@@ -274,6 +290,12 @@
 ##'     file containing information about all simulated models will be
 ##'     created. Notice if \code{file.res} is supplied, \code{dir.res}
 ##'     is not used.
+##' @param dir.sim.sub If `TRUE` (default) a dedicated subdirectory
+##'     will be created for eac model run. This is normally the
+##'     cleanest way to run simulations. However, when `NMsim()` is
+##'     used for estimation, it may be better to provide model results
+##'     in the same folder as the input control stream (like PSN would
+##'     do). Use `dir.sim.sub=FALSE` to get this behavior.
 ##' @param clean The degree of cleaning (file removal) to do after
 ##'     Nonmem execution. If `method.execute=="psn"`, this is passed
 ##'     to PSN's `execute`. If `method.execute=="nmsim"` a similar
@@ -401,7 +423,6 @@
 ##' @import NMdata
 ##' @import data.table
 ##' @import utils 
-##' @importFrom stats runif
 ##' @importFrom xfun relative_path
 ##' @export
 
@@ -441,13 +462,13 @@ NMsim <- function(file.mod,data,
                   dir.sims,
                   dir.res,
                   file.res,
+                  dir.sim.sub=TRUE,
                   wait,
                   text.sim="",
                   auto.dv=TRUE,
                   clean,
                   sim.dir.from.scratch=TRUE,
                   create.dirs=TRUE,
-
                   quiet=FALSE,
                   nmquiet,
                   progress,
@@ -537,7 +558,7 @@ NMsim <- function(file.mod,data,
     
     
     ## Section end: Dummy variables, only not to get NOTE's in pacakge checks
-
+    
 
     ## as.fun
     if(missing(as.fun)) as.fun <- NULL
@@ -645,7 +666,6 @@ NMsim <- function(file.mod,data,
     if(missing(name.sim)) name.sim <- NULL
     name.sim <- simpleCharArg("name.sim",name.sim,"noname",accepted=NULL,lower=FALSE,clean=FALSE)
     name.sim.paths <- cleanStrings(name.sim)
-
     modelname <- NULL
     input.archive <- FALSE
 
@@ -928,10 +948,15 @@ NMsim <- function(file.mod,data,
     
     ## dir.sim is the model-individual directory in which the model will be run
     ## dt.models[,
-    ##           dir.sim:=file.path(dir.sims,paste(name.mod,name.sim.paths,sep="_"))]
-    dt.models[,
-              dir.sim:=file.path(dir.sims,cleanStrings(paste(model,name.sim.paths,sep="_")))]
-    
+    ##        dir.sim:=file.path(dir.sims,paste(name.mod,name.sim.paths,sep="_"))]
+
+    if(dir.sim.sub){
+        dt.models[,
+                  dir.sim:=file.path(dir.sims,cleanStrings(paste(model,name.sim.paths,sep="_")))]
+    } else {
+        dt.models[,
+                  dir.sim:=dir.sims]
+    }
     
     ## path.sim.tmp is a temporary path to the sim control stream - it
     ## will be moved to path.sim once created.
@@ -993,7 +1018,7 @@ NMsim <- function(file.mod,data,
 
     
 ### clear simulation directories so user does not end up with old results
-    if(sim.dir.from.scratch){
+    if(dir.sim.sub && sim.dir.from.scratch){
         dt.models[,if(dir.exists(dir.sim)) unlink(dir.sim,recursive=TRUE),by=.(ROWMODEL)]
     }
     dt.models[,if(file.exists(path.sim)) unlink(path.sim),by=.(ROWMODEL)]
@@ -1372,10 +1397,14 @@ NMsim <- function(file.mod,data,
     ## dt.models[,seed:={if(is.function(seed))  seed() else seed},by=.(ROWMODEL2)]
     ## if(is.numeric(dt.models[,seed])) dt.model[,seed:=sprintf("(%s)",seed)]
 
-
+    
 ### if typical
-    if(typical){
-        dt.mods.sim <- dt.models[,.(mod=typicalize(file.sim=path.sim,file.mod=file.mod,return.text=TRUE,file.ext=file.ext)),by=.(ROWMODEL,path.sim)]
+    if(is.character(typical)||typical){
+        typical.use <- typical
+        if(!is.character(typical)) typical.use <- NULL
+#### old typicalize version
+        ## dt.mods.sim <- dt.models[,.(mod=typicalize(file.sim=path.sim,file.mod=file.mod,return.text=TRUE,file.ext=file.ext)),by=.(ROWMODEL,path.sim)]
+        dt.mods.sim <- dt.models[,.(mod=typicalize(file.mod=path.sim,section=typical.use)),by=.(ROWMODEL,path.sim)]
         ## write results
         
         ## dt.models[,writeTextFile(dt.mods.sim[ROWMODEL2==ROWMODEL,mod],file=path.sim),by=ROWMODEL2]

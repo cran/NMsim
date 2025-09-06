@@ -2,7 +2,7 @@
 % Please edit documentation in R/NMsim.R
 \name{NMsim}
 \alias{NMsim}
-\title{Simulate from an estimated Nonmem model}
+\title{Simulate from a Nonmem model}
 \usage{
 NMsim(
   file.mod,
@@ -41,6 +41,7 @@ NMsim(
   dir.sims,
   dir.res,
   file.res,
+  dir.sim.sub = TRUE,
   wait,
   text.sim = "",
   auto.dv = TRUE,
@@ -154,15 +155,31 @@ methods.}
 
 \item{typical}{Run with all ETAs fixed to zero? Technically all
 ETAs=0 is obtained by replacing \code{$OMEGA} by a zero
-matrix. Default is `FALSE`.}
+matrix. Default is `FALSE`. Instead of a logical `TRUE/FALSE`,
+a character vector can be used to specify what parameter types
+to set to zero and fix. Examples:
+`typical=c("OMEGA","SIGMA")`,
+`typical=c("THETAPV","OMEGA","OMEGAP","OMEGAPD")`. In fact, if
+`typical=TRUE`, both `$OMEGA` itself and - if found - their
+priors will be fixed at zero.}
 
-\item{inits}{Control the parameter values. `inits` is a list. The
-    `method` element controls which method is used to do this, and
-    this corresponds to the old `method.update.inits` argument. If
-    using the new `method=nmsim` you can specify parameter
-    values, fix/unfix them, and edit lower and upper limits for
-    estimation.
-\itemize{
+\item{inits}{Control the parameter values. `inits` is a list and
+    contains (any of) the `method` used to edit the parameters,
+    and what modifications to do.
+
+Using the defaul `method`, all other list elements are passed as
+arguments to `NMwriteInits()`. Please see `?NMwriteInits` and the
+examples on the NMsim website for how to edit the parameter
+values:
+\url{https://nmautoverse.github.io/NMsim/articles/NMsim-modify-model.html}
+
+The `method` element controls which method is used to do this, and
+    this corresponds to the old `method.update.inits`
+    argument. Normally, the user should not need to deal with this
+    as the default `nmsim` method is very flexible and
+    powerful. If using the new `method=nmsim` you can specify
+    parameter values, fix/unfix them, and edit lower and upper
+    limits for estimation.  \itemize{
 
 \item{`method="nmsim"`} (default) A highly flexible internal
      method, allows for modification of the parameter values. All
@@ -195,16 +212,15 @@ into the respective sections in the control stream.
 }
 
 See also `file.ext` which can now be handled by `inits` too. This
-change collects the update of the "initial"
-parameter values into one interface rather than multiple
-arguments.}
+change collects the update of the "initial" parameter values into
+one interface rather than multiple arguments.}
 
-\item{modify}{Named list of additional control stream
-section edits. Note, these can be functions that define how to
-edit sections. This is an advanced feature which is not needed
-to run most simulations. It is however powerful for some types
-of analyses, like modifying parameter values. See vignettes
-for further information.}
+\item{modify}{Named list of additional control stream section
+edits. Note, these can be functions that define how to edit
+sections. This is an advanced feature which is not needed to
+run most simulations. It is however powerful for some types of
+analyses, like modifying parameter values. See vignettes for
+further information.}
 
 \item{filters}{Edit data filters (`IGNORE`/`ACCEPT` statements)
 before running model. This should normally only be used if no
@@ -293,7 +309,8 @@ specific installation of PSN on your system.}
 arguments PSN's `execute`. The default is
 "-model_dir_name -nm_output=coi,cor,cov,ext,phi,shk,xml -nmfe_options=\"-maxlim=2\""
 in addition to the "-clean" based on the `clean`
-argument. Notice, if `path.nonmem` is provided, the default is not to use PSN.}
+argument. Notice, if `path.nonmem` is provided, the default is
+not to use PSN.}
 
 \item{args.NMscanData}{If \code{execute=TRUE&sge=FALSE}, NMsim
 will normally read the results using \code{NMreadSim}. Use
@@ -343,6 +360,13 @@ file containing information about all simulated models will be
 created. Notice if \code{file.res} is supplied, \code{dir.res}
 is not used.}
 
+\item{dir.sim.sub}{If `TRUE` (default) a dedicated subdirectory
+will be created for eac model run. This is normally the
+cleanest way to run simulations. However, when `NMsim()` is
+used for estimation, it may be better to provide model results
+in the same folder as the input control stream (like PSN would
+do). Use `dir.sim.sub=FALSE` to get this behavior.}
+
 \item{wait}{Wait for simulations to finish? Default is to do so if
 simulations are run locally but not to if they are sent to the
 cluster. Waiting for them means that the results will be read
@@ -354,8 +378,8 @@ background, and then read the results, still waiting for
 Nonmem to finish.}
 
 \item{text.sim}{A character string to be pasted into
-$SIMULATION. This must not contain seed or SUBPROBLEM which
-is handled separately. Default is to include "ONLYSIM". You
+$SIMULATION. This must not contain seed or SUBPROBLEM which is
+handled separately. Default is to include "ONLYSIM". You
 cannot avoid that using `text.sim`. If needed, you can use
 `onlysim=FALSE` which will be passed to `NMsim_default()`.}
 
