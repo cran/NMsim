@@ -101,6 +101,7 @@ NMwriteInits <- function(file.mod,lines,update=TRUE,file.ext=NULL,ext,inits.tab,
     V1 <- NULL
 
     cleanSpaces <- NMdata:::cleanSpaces
+    dcastSe <- NMdata:::dcastSe
 
     if(missing(file.mod)) file.mod <- NULL
     if(missing(lines)) lines <- NULL
@@ -119,6 +120,7 @@ NMwriteInits <- function(file.mod,lines,update=TRUE,file.ext=NULL,ext,inits.tab,
         ##tab.new[,parameter:=sub("THETA\\(([0-9]+)\\)","THETA\\1",parameter)]
         tab.new <- addParType(tab.new)
         ## don´t use lower,upper,fix. Missing lower or upper will result in NA in table. Missing should mean don´t edit, not remove. But also, not sure we would use the tab.new interface to edit those. For now, those have to be edit trough the values interface
+
         
 ### todo check tab.new object
         ## tab.new must include a model variable

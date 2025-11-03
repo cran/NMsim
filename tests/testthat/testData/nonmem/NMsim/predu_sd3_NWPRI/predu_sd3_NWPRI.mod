@@ -1,0 +1,90 @@
+$SIZES LTH=20 LVR=24
+
+; Used for comparing single versus parallel computing for FOCE method.
+$PROB RUN# Example 1 (from samp5l)
+$INPUT NMROW ID TIME EVID CMT AMT RATE DV MDV C CLX CONC JID QX SDIX
+SDSX SET V1X V2X
+
+$DATA NMsimData_predu_sd3_NWPRI.csv
+IGN=@
+
+$SUBROUTINES ADVAN3 TRANS4
+
+$PK
+MU_1=THETA(1)
+MU_2=THETA(2)
+MU_3=THETA(3)
+MU_4=THETA(4)
+CL=DEXP(MU_1+ETA(1))
+V1=DEXP(MU_2+ETA(2))
+Q=DEXP(MU_3+ETA(3))
+V2=DEXP(MU_4+ETA(4))
+S1=V1
+
+LCL=LOG(CL)
+LV1=LOG(V1)
+LQ=LOG(Q)
+LV2=LOG(V2)
+RECNO=NDREC
+
+$ERROR
+IPRED=F
+If(COMACT==1) PREDU=IPRED
+Y = IPRED + IPRED*EPS(1)
+
+; Initial values of THETA
+$THETA 1.68693 1.61128 0.819592 2.39159 
+;INITIAL values of OMEGA
+
+
+$OMEGA BLOCK(4)  
+1e-30 FIX          ;[P]
+1e-30              ;[F]
+1e-30              ;[P]
+1e-30              ;[F]
+1e-30              ;[F]
+1e-30              ;[P]
+1e-30              ;[F]
+1e-30              ;[F]
+1e-30              ;[F]
+1e-30              ;[P]
+;Initial value of SIGMA
+
+
+
+$SIGMA 0.057164  ;[P]
+
+
+
+
+
+
+
+$PRIOR NWPRI PLEV=0.999000
+
+$THETAP 1.68693 FIX  
+$THETAP 1.61128 FIX  
+$THETAP 0.819592 FIX 
+$THETAP 2.39159 FIX  
+
+$THETAPV BLOCK(4) 0.00186905 FIX             
+0.000246361 0.00228643                        
+0.00057912 0.000235841 0.00496342             
+0.000243784 0.000327103 0.00196736 0.00267919 
+
+$OMEGAP BLOCK(4) 1e-30 FIX 
+1e-30 1e-30                 
+1e-30 1e-30 1e-30           
+1e-30 1e-30 1e-30 1e-30     
+
+$OMEGAPD 0 FIX 
+
+$SIGMAP 0.057164 
+
+$SIGMAPD 94.5562166068404 FIX 
+
+
+$SIMULATION ONLYSIM (2342)
+TRUE=PRIOR 
+
+$TABLE NMROW ID RECNO TIME IPRED PREDU PRED VARCALC=3 NOAPPEND NOPRINT FILE=predu_sd3_NWPRI.tab
