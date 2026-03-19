@@ -11,13 +11,17 @@
 ##'     for recursively.
 ##' @param delete Delete the found matches? If not, the matches are
 ##'     just reported, but nothing deleted.
+##' @param as.fun Pass a function (say tibble::as_tibble) in as.fun to convert
+##'     to something else. If data.tables are wanted, use
+##'     as.fun="data.table". The default is to return data as a
+##'     data.frame. Modify the defaul using `NMdataConf()`.
 ##' @return data.table with identified items for deletion
 ##' @import data.table
 ##' @import NMdata
 ##' @export
 
 
-deleteTmpDirs <- function(dir,methods,recursive=FALSE,delete=TRUE){
+deleteTmpDirs <- function(dir,methods,recursive=FALSE,delete=TRUE,as.fun){
 
     . <- NULL
     method <- NULL
@@ -56,12 +60,17 @@ deleteTmpDirs <- function(dir,methods,recursive=FALSE,delete=TRUE){
     )
    ,by=.(row,method,pattern)]
 
+    dt.sum.finds <- dt.finds[,.N,by=.(method,pattern)]
+
     if(delete){
         dt.finds[,unlink(find,recursive=TRUE)]
+        message("Deleted file types:")
+    } else {
+        message("Found file types:")
     }
 
-    dt.sum.finds <- dt.finds[,.N,by=.(method,pattern)]
-    
-    dt.sum.finds
+    NMdata:::message_dt(dt.sum.finds)
+
+    invisible(dt.finds)
     
 }

@@ -11,9 +11,10 @@
 ##' @param text.section This is used to overwrite the contents of the section. The section output file name will still handled/updated.
 ##' @param quiet Suppress messages? Default is `FALSE`.
 ##' @keywords internal
+##' @import NMdata
 
-NMupdateFn <- function(x,section,model,fnext,add.section.text,par.file,text.section,quiet=FALSE){### Arguments to replace: FILE, .tab, text.table
-    
+NMupdateFn <- function(x,section,model,fnext,add.section.text,par.file,text.section,quiet=FALSE){
+
     lines <- as.NMctl(x)
     
     if(missing(text.section)) text.section <- NULL
@@ -23,7 +24,7 @@ NMupdateFn <- function(x,section,model,fnext,add.section.text,par.file,text.sect
     fn.tab.base <- paste0(par.file,"=",run.sim,fnext)
     ## lines.mod <- readLines(model)
 
-    dollar.section <- section
+    dollar.section <- toupper(section)
     dollar.section <- paste0("$",substr(dollar.section,1,3))    
     dollar.section.new <- dollar.section
     if(dollar.section.new=="EST") dollar.section.new <- "ESTIMATION"

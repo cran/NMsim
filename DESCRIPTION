@@ -1,7 +1,7 @@
 Package: NMsim
 Type: Package
 Title: Seamless 'Nonmem' Simulation Platform
-Version: 0.2.6
+Version: 0.2.7
 Authors@R: c(person("Philip", "Delff", email = "philip@delff.dk",role = c("aut","cre")),
   person("Brian", "Reilly", email = "reilly.brian.m@gmail.com",role = c("ctb")),
   person("Sanaya","Shroff",email="sanaya.n.shroff@gmail.com",role = c("ctb")),
@@ -11,7 +11,7 @@ Description: A complete and seamless 'Nonmem' simulation interface within R. Tur
 License: MIT + file LICENSE
 RoxygenNote: 7.3.3
 Depends: R (>= 3.5.0)
-Imports: data.table, NMdata (>= 0.2.1), R.utils, MASS, fst, xfun
+Imports: data.table, NMdata (>= 0.2.2), R.utils, MASS, fst, xfun
 Suggests: testthat, knitr, rmarkdown, ggplot2, ggstance, patchwork,
         stringr, tracee, tidyvpc, kableExtra, coveffectsplot, NMcalc,
         waldo
@@ -23,10 +23,10 @@ BugReports: https://github.com/nmautoverse/NMsim/issues
 Language: en-US
 URL: https://nmautoverse.github.io/NMsim/
 NeedsCompilation: no
-Packaged: 2025-11-03 16:41:29 UTC; philipde
+Packaged: 2026-03-18 18:07:39 UTC; philipde
 Author: Philip Delff [aut, cre],
   Brian Reilly [ctb],
   Sanaya Shroff [ctb],
   Boris Grinshpun [ctb]
 Repository: CRAN
-Date/Publication: 2025-11-03 17:40:02 UTC
+Date/Publication: 2026-03-19 08:10:19 UTC

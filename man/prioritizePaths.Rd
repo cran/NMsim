@@ -18,4 +18,11 @@ When using scripts on different systems, the Nonmem path may
 change from run to run. With this function you can specify a few
 paths, and it will return the one that works on the system in use.
 }
-\keyword{internal}
+\examples{
+library(NMdata)
+NMdataConf(path.nonmem = prioritizePaths(c(
+  "/opt/NONMEM/nm75/run/nmfe75",
+  "C:/nm75g64/run/nmfe75.bat")
+))
+
+}
