@@ -1,0 +1,1 @@
+/opt/psn/execute -model_dir_name -nm_output=xml,ext,cov,cor,coi,phi xgxr025.mod

@@ -24,7 +24,7 @@ test_that("Priors",{
     fileRef <- "testReference/typicalize_02.rds"
 
     ##file.mod="testData/nonmem/xgxr011.mod"
-    file.mod="testData/nonmem/xgxr032_sd1_NWPRI.mod"
+    file.mod <- "testData/nonmem/xgxr032_sd1_NWPRI.mod"
 
     newfile <- "testOutput/typicalize1.mod"
 
@@ -32,7 +32,8 @@ test_that("Priors",{
     
     secs <- NMreadSection(lines=res0)
     
-    res <- secs[c("OMEGA","OMEGAP","OMEGAPD")]
+    ## res <- secs[c("OMEGA","OMEGAP","OMEGAPD")]
+    res <- secs[names(secs)%in%c("OMEGA","OMEGAP","OMEGAPD")]
     expect_equal_to_reference(res,fileRef)
 
     if(F){

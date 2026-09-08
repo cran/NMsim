@@ -18,19 +18,22 @@ typicalize <- function(file.mod,lines,section,newfile){
     init <- NULL
     par.type <- NULL
     
-
     if(missing(file.mod)) file.mod <- NULL
     if(missing(lines)) lines <- NULL
     if(missing(section)) section <- NULL
     if(missing(newfile)) newfile <- NULL
     
     lines <- NMdata:::getLines(file=file.mod,lines=lines,simplify=TRUE)
-    
+  
     if(is.null(section)){
-        section <- c("OMEGA","OMEGAP","OMEGAPD")
+      ## section <- c("OMEGA","OMEGAP","OMEGAPD")
+      section <- c("OMEGA")
     }
-    section <- NMdata:::cleanSpaces(section)
-    section <- toupper(section)
+    ## section <- NMdata:::cleanSpaces(section)
+    ## section <- toupper(section)
+  section <- stringToSection(section)
+  section <- section[!grepl("P$|PD$",section)]
+  section.drop <- outer(section[section%in%c("OMEGA","SIGMA")],c("P","PD"),FUN=paste0)
 
     inits <- NMreadInits(lines=lines,as.fun="data.table",section=section)
     inits[,init:=as.character(init)]
@@ -42,7 +45,14 @@ typicalize <- function(file.mod,lines,section,newfile){
         inits[par.type%in%section&blocksize>1,init:=valc.0]
     }
 
-    mod.new <- NMwriteInits(lines=lines,inits.tab=inits,update=FALSE)
+  mod.new <- NMwriteInits(lines=lines,inits.tab=inits,update=FALSE)
+
+  mod.new <- NMdata:::NMwriteSectionOne(lines=mod.new,
+                                        list.sections=setNames(as.list(rep("",length(section.drop))),nm=section.drop)
+        ,quiet=TRUE                                              
+          )
+  ## Not sure this is needed
+  ## mod.new <- mod.new[!grepl(paste(section.drop, collapse = "|"), mod.new)]
 
     ## write to file if requested
     if(is.null(newfile)){

@@ -46,9 +46,9 @@
 ##' @export
 
 NMwriteSizes <- function(file.mod=NULL,newfile,lines=NULL,wipe=FALSE,write=!is.null(newfile),...){
-    
+  
     ### change to NMdata:::NMwriteSection when going back to NMdata
-    NMwriteSectionOne <- NMwriteSectionOne
+    NMwriteSectionOne <- NMdata:::NMwriteSectionOne
     
     sizes.new <- list(...)
 ### check sizes.new

@@ -61,7 +61,7 @@
 ##' )
 ##' ## or put them in a list in the values argument
 ##' NMwriteInits(file.mod,
-##' values=list( "theta(2)"=list(init=1.4),
+##' values=list( "theta(2)"=list(init=1.4,FIX=1),
 ##'              "THETA(3)"=list(FIX=1),
 ##'              "omega(2,2)"=list(init=0.1))
 ##' )
@@ -102,9 +102,6 @@ NMwriteInits <- function(file.mod,lines,update=TRUE,file.ext=NULL,ext,inits.tab,
     V1 <- NULL
 
     cleanSpaces <- NMdata:::cleanSpaces
-    if(packageVersion("NMdata") < "0.2.4"){
-        dcastSe <- NMdata:::dcastSe
-    } 
 
     addParType <- NMdata:::addParType
     addParameter <- NMdata:::addParameter
@@ -172,10 +169,12 @@ NMwriteInits <- function(file.mod,lines,update=TRUE,file.ext=NULL,ext,inits.tab,
         ## we allow THETA(1) but the real parameter name is THETA1
         ## tab.new[,parameter:=sub("THETA\\(([0-9]+)\\)","THETA\\1",parameter,ignore.case=TRUE)]
         ## tab.new <- addParType(tab.new)
+      
         
-        
-        inits.l[type.elem=="FIX" & value.new=="0",value.new:=""]
-        inits.l[type.elem=="FIX" & value.new=="1",value.new:=" FIX"]
+      inits.l[type.elem=="FIX" & isFALSE(value.new) ,value.new:=""]
+      inits.l[type.elem=="FIX" & isTRUE(value.new) ,value.new:=" FIX"]
+        inits.l[type.elem=="FIX" & value.new%in%c("0","FALSE","F"),value.new:=""]
+        inits.l[type.elem=="FIX" & value.new%in%c("1","TRUE","T"),value.new:=" FIX"]
         ##inits.l[type.elem=="FIX" & value.new=="1",value.new:=""]
         
         ## while "model" is needed, the value does not matter 
@@ -207,17 +206,18 @@ NMwriteInits <- function(file.mod,lines,update=TRUE,file.ext=NULL,ext,inits.tab,
                 inits.l[,c(cols.by,"value.new"),with=FALSE]
                ,by=cols.by,all=TRUE)
         }
-        
+
+      
         ## update
         pars.l[!is.na(value.new)&value.new!="SAME",
                value.elem:=value.new
                ]
+
         setnames(pars.l,"value.new",paste0("value.",name.step))
 
         pars.l
     }
     
-
 ### maybe more than one model could be allowed. If not, NMsim will break all the time?
     
 ### call getLines(,simplify=FALSE). Then test if length>1. Then simplify.
@@ -397,8 +397,7 @@ NMwriteInits <- function(file.mod,lines,update=TRUE,file.ext=NULL,ext,inits.tab,
     pars.l[,iblock:=uniquePresent(iblock),by=.(par.type,i,j)]
     pars.l[,blocksize:=uniquePresent(blocksize),by=.(par.type,i,j)]
 
-    
-    
+     
     inits.w <- dcastSe(pars.l,
                        l=intersect(c("model","par.type","linenum","parnum","i","j","iblock","blocksize"),colnames(pars.l)),
                        r="type.elem",
@@ -453,7 +452,7 @@ NMwriteInits <- function(file.mod,lines,update=TRUE,file.ext=NULL,ext,inits.tab,
                     row.within.block:=1:.N,
                     by=c(bymodel,"iblock.unique")]
     }
-
+    
     
 ### fixing everything if any element in block is fixed
     ## inits.w[blocksize>1,value.elem_FIX:=ifelse(any(grepl("FIX",value.elem_FIX))," FIX",""),by=c(bymodel,"iblock.unique")]
@@ -465,9 +464,10 @@ NMwriteInits <- function(file.mod,lines,update=TRUE,file.ext=NULL,ext,inits.tab,
     if(!"row.within.block"%in%colnames(inits.w)) inits.w[,row.within.block:=1]
     inits.w[blocksize>1&is.na(row.within.block)|row.within.block!=1,
             value.elem_FIX:=""]
-
+    
 ### call NMwriteInitsOne()
     if("model"%in%colnames(inits.w)){
+      
         all.models <- inits.w[,unique(model)]
         lines.new <- lapply(all.models,function(this.mod){
             

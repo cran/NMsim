@@ -8,6 +8,7 @@
 ##'     executables.
 ##' @param must.work If TRUE, an error is thrown if no paths are
 ##'     valid.
+##' @return A single path (character string)
 ##' @export
 ##'
 ##' @examples
@@ -18,6 +19,7 @@
 ##' ))
 ##' 
 prioritizePaths <- function(paths,must.work=FALSE){
+
     paths <- paths[sapply(paths,file.exists)]
     if(!length(paths)){
         if(must.work){

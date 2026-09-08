@@ -2,8 +2,8 @@ $SIZES LTH=20 LVR=24
 
 ; Used for comparing single versus parallel computing for FOCE method.
 $PROB RUN# Example 1 (from samp5l)
-$INPUT NMROW ID TIME EVID CMT AMT RATE DV MDV C CLX CONC JID QX SDIX
-SDSX SET V1X V2X
+$INPUT NMROW ID TIME EVID CMT AMT RATE DV MDV C CLX CONC JID QX SDIX SDSX SET
+V1X V2X
 
 $DATA NMsimData_predu_sd2_NWPRI.csv
 IGN=@
